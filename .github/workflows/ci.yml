@@ -1,0 +1,37 @@
+name: Integracion continua
+
+on:
+  push:
+    branches: [main, QA]
+  pull_request:
+    branches: [main, QA]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Validar calidad, compilacion y pruebas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar codigo
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Compilar aplicacion
+        run: npm run build
+
+      - name: Ejecutar pruebas unitarias
+        run: npm test -- --runInBand
