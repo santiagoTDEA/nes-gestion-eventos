@@ -1,0 +1,42 @@
+name: Deploy QA
+
+on:
+    push:
+        branches:
+            - QA
+
+permissions:
+    contents: read
+
+jobs:
+    deploy:
+        name: Preparar entorno QA
+        runs-on: ubuntu-latest
+        environment: QA
+
+        steps:
+            - name: Descargar repositorio
+              uses: actions/checkout@v4
+
+            - name: Reemplazar variables de entorno
+              run: |
+                  sed -i "s|#{PORT}#|${{ secrets.PORT }}|g" src/enviroments/.env
+                  sed -i "s|#{POSTGRES_HOST}#|${{ secrets.POSTGRES_HOST }}|g" src/enviroments/.env
+                  sed -i "s|#{POSTGRES_PORT}#|${{ secrets.POSTGRES_PORT }}|g" src/enviroments/.env
+                  sed -i "s|#{POSTGRES_USER}#|${{ secrets.POSTGRES_USER }}|g" src/enviroments/.env
+                  sed -i "s|#{POSTGRES_PASSWORD}#|${{ secrets.POSTGRES_PASSWORD }}|g" src/enviroments/.env
+                  sed -i "s|#{POSTGRES_DB}#|${{ secrets.POSTGRES_DB }}|g" src/enviroments/.env
+
+            - name: Verificar variables
+              run: |
+                  echo "Variables de entorno configuradas"
+
+            - name: Instalar dependencias
+              run: npm ci
+
+            - name: Compilar aplicación
+              run: npm run build
+
+            - name: Desplegar aplicación
+              run: |
+                  echo "Desplegando aplicación en entorno QA"
