@@ -6,7 +6,7 @@ import { setupSwagger } from './docs/swagger';
 import { Env } from './enviroments/models/enviroment.model';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-    const configService = app.get<ConfigService<Env, true>>(ConfigService);
+  const configService = app.get<ConfigService<Env, true>>(ConfigService);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -17,7 +17,7 @@ async function bootstrap() {
   );
 
   setupSwagger(app);
- const port = configService.get('PORT', { infer: true });
+  const port = configService.get('PORT', { infer: true });
   await app.listen(port);
 }
 void bootstrap();
