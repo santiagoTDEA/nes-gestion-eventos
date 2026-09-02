@@ -1,19 +1,31 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { GetHelloUseCase } from './application/use-cases/get-hello.use-case';
-import { AppController } from './infrastructure/http/controllers/app.controller';
-import { RequestHeadersInterceptor } from './infrastructure/http/interceptors/request-headers.interceptor';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Env } from './enviroments/models/enviroment.model';
+
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
-  controllers: [AppController],
-  providers: [
-    GetHelloUseCase,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestHeadersInterceptor,
-    },
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/enviroments/.env' }),
+    TypeOrmModule.forRootAsync({
+      useFactory: (configService: ConfigService<Env>) => ({
+        type: 'postgres',
+        host: configService.get('POSTGRES_HOST', { infer: true }),
+        port: configService.get('POSTGRES_PORT', { infer: true }),
+        username: configService.get('POSTGRES_USER', { infer: true }),
+        password: configService.get('POSTGRES_PASSWORD', { infer: true }),
+        database: configService.get('POSTGRES_DB', { infer: true }),
+        ssl: true,
+        autoLoadEntities: true,
+        synchronize: true,
+      }),
+      inject: [ConfigService],
+    })
+
+
   ],
+  controllers: [],
+  providers: [],
 })
-export class AppModule {}
+export class AppModule { }
