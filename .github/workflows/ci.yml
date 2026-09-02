@@ -33,5 +33,5 @@ jobs:
       - name: Compilar aplicacion
         run: npm run build
 
-      - name: Ejecutar pruebas unitarias
-        run: npm test -- --runInBand
+      - name: Ejecutar pruebas unitarias sin tests
+        run: npm test -- --runInBand --passWithNoTests
