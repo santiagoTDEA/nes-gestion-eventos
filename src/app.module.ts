@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Env } from './enviroments/models/enviroment.model';
 
-
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: 'src/enviroments/.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: 'src/enviroments/.env',
+    }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService<Env>) => ({
         type: 'postgres',
@@ -21,11 +22,9 @@ import { Env } from './enviroments/models/enviroment.model';
         synchronize: true,
       }),
       inject: [ConfigService],
-    })
-
-
+    }),
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {}
