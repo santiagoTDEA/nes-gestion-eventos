@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Env } from './enviroments/models/enviroment.model';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { Env } from './enviroments/models/enviroment.model';
       }),
       inject: [ConfigService],
     }),
+    RolesModule,
   ],
   controllers: [],
   providers: [],
