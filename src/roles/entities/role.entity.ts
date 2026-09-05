@@ -70,8 +70,8 @@ export class Role {
     name: 'updated_at',
   })
   updatedAt!: Date;
- @OneToMany(() => Person, (person) => person.role)
-    persons!: Person[];
+  @OneToMany(() => Person, (person) => person.role)
+  persons!: Person[];
   static create(data: RoleProps): Role {
     const role = new Role();
 
@@ -84,15 +84,10 @@ export class Role {
     this.setFields(data);
   }
 
-
-
   private setFields(data: Partial<RoleProps>): void {
-    const permissionsFull =
-      data.permissionsFull ?? this.permissionsFull;
+    const permissionsFull = data.permissionsFull ?? this.permissionsFull;
 
-    const modulesFull =
-      data.modulesFull ?? this.modulesFull;
-
+    const modulesFull = data.modulesFull ?? this.modulesFull;
 
     if (!permissionsFull && modulesFull) {
       throw new ErrorManager({
@@ -104,8 +99,7 @@ export class Role {
 
     const fields: Partial<RoleProps> = {
       ...data,
-      ...(permissionsFull && modulesFull && { accesos: [] })
-
+      ...(permissionsFull && modulesFull && { accesos: [] }),
     };
 
     Object.assign(this, fields);

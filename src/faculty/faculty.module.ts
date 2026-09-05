@@ -9,20 +9,9 @@ import { FacultyController } from './controllers/faculty.controller';
 import { StateModule } from '../state/state.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Faculty]),
-        StateModule,
-    ],
-    controllers: [
-        FacultyController,
-    ],
-    providers: [
-        FacultyRepository,
-        FacultyService,
-    ],
-    exports: [
-        FacultyService,
-        FacultyRepository,
-    ],
+  imports: [TypeOrmModule.forFeature([Faculty]), StateModule],
+  controllers: [FacultyController],
+  providers: [FacultyRepository, FacultyService],
+  exports: [FacultyService, FacultyRepository],
 })
-export class FacultyModule { }
+export class FacultyModule {}

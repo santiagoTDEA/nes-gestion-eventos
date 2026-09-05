@@ -11,24 +11,22 @@ import { Env } from '../enviroments/models/enviroment.model';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([User]),
-        StateModule,
-        PersonModule,
-        JwtModule.registerAsync({
-            inject: [ConfigService],
-            useFactory: (configService: ConfigService<Env>) => ({
-                secret: configService.get<string>('JWT_SECRET'),
-                signOptions: {
-                    expiresIn: configService.getOrThrow<number>('EXPIRATION_TIME'),
-                },
-            }),
-        }),
-    ],
-    controllers: [UserController],
-    providers: [UserRepository, UserService, JwtStrategy],
-    exports: [UserService],
-
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    StateModule,
+    PersonModule,
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<Env>) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: configService.getOrThrow<number>('EXPIRATION_TIME'),
+        },
+      }),
+    }),
+  ],
+  controllers: [UserController],
+  providers: [UserRepository, UserService, JwtStrategy],
+  exports: [UserService],
 })
-export class AuthModule {
-}
+export class AuthModule {}

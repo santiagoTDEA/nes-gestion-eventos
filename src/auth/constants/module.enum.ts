@@ -1,5 +1,5 @@
 export enum Module {
-    GESTION_EVENTOS = 'Gestión de Eventos',
-    USUARIOS = 'Usuarios',
-    PERSONAS = 'Personas',
+  GESTION_EVENTOS = 'Gestión de Eventos',
+  USUARIOS = 'Usuarios',
+  PERSONAS = 'Personas',
 }

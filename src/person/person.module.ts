@@ -12,22 +12,14 @@ import { PersonService } from './services/person.service';
 import { RoleModule } from '../roles/roles.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Person]),
-        FacultyModule,
-        StateModule,
-        RoleModule
-    ],
-    controllers: [
-        PersonController,
-    ],
-    providers: [
-        PersonRepository,
-        PersonService,
-    ],
-    exports: [
-        PersonService,
-        PersonRepository
-    ],
+  imports: [
+    TypeOrmModule.forFeature([Person]),
+    FacultyModule,
+    StateModule,
+    RoleModule,
+  ],
+  controllers: [PersonController],
+  providers: [PersonRepository, PersonService],
+  exports: [PersonService, PersonRepository],
 })
-export class PersonModule { }
+export class PersonModule {}

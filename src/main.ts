@@ -22,9 +22,10 @@ async function bootstrap() {
 
   setupSwagger(app);
 
-  const port = configService.get<number>('PORT', {
-    infer: true,
-  }) ?? 3000;
+  const port =
+    configService.get<number>('PORT', {
+      infer: true,
+    }) ?? 3000;
 
   await app.listen(port, '0.0.0.0');
   // await app.listen(port);
