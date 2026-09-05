@@ -4,9 +4,11 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { RoleProps } from '../interfaces/role.interface';
 import { ErrorManager } from '../../utils/error.manager';
+import { Person } from '../../person/entities/person.entity';
 
 interface RoleAccess {
   modulo: string;
@@ -68,7 +70,8 @@ export class Role {
     name: 'updated_at',
   })
   updatedAt!: Date;
-
+ @OneToMany(() => Person, (person) => person.role)
+    persons!: Person[];
   static create(data: RoleProps): Role {
     const role = new Role();
 
