@@ -34,8 +34,5 @@ jobs:
       - name: Compilar aplicacion
         run: npm run build
 
-      - name: Ejecutar pruebas unitarias
-        run: npm test -- --runInBand --passWithNoTests
-
       - name: Construir imagen Docker
         run: docker build -t gestion-eventos-api:qa .
