@@ -1,207 +1,166 @@
-import {
-    Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { FacultyRepository } from '../repository/faculty.repository';
 import { StatusRepository } from '../../state/repositories/state.repository';
 import { Faculty } from '../entities/faculty.entity';
-import {
-    CreateFacultyDto,
-    UpdateFacultyDto,
-} from '../dto/faculty.dto';
+import { CreateFacultyDto, UpdateFacultyDto } from '../dto/faculty.dto';
 import { ErrorManager } from '../../utils/error.manager';
-
-
-
 
 @Injectable()
 export class FacultyService {
+  constructor(
+    private readonly facultyRepository: FacultyRepository,
+    private readonly statusRepository: StatusRepository,
+  ) {}
 
-    constructor(
-        private readonly facultyRepository: FacultyRepository,
-        private readonly statusRepository: StatusRepository,
-    ) { }
+  async findAll(): Promise<Faculty[]> {
+    return this.facultyRepository.findAll();
+  }
 
-    async findAll(): Promise<Faculty[]> {
+  async findById(idFaculty: number): Promise<Faculty> {
+    try {
+      const faculty = await this.facultyRepository.findById(idFaculty);
 
-        return this.facultyRepository.findAll();
+      if (!faculty) {
+        throw new ErrorManager({
+          type: 'NOT_FOUND',
+          message: `No se encontró la facultad .`,
+        });
+      }
+
+      return faculty;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
     }
+  }
 
-    async findById(idFaculty: number): Promise<Faculty> {
+  async create(createFacultyDto: CreateFacultyDto): Promise<Faculty> {
+    try {
+      const existingFaculty = await this.facultyRepository.findByName(
+        createFacultyDto.name,
+      );
 
-        try {
+      if (existingFaculty) {
+        throw new ErrorManager({
+          type: 'CONFLICT',
+          message: `Ya existe una facultad con el nombre "${createFacultyDto.name}"`,
+        });
+      }
 
-            const faculty =
-                await this.facultyRepository.findById(idFaculty);
+      const status = await this.statusRepository.findById(
+        createFacultyDto.statusId,
+      );
 
-            if (!faculty) {
-                throw new ErrorManager({
-                    type: 'NOT_FOUND',
-                    message: `No se encontró la facultad .`,
-                });
-            }
+      if (!status) {
+        throw new ErrorManager({
+          type: 'NOT_FOUND',
+          message: 'No se encontró el estado',
+        });
+      }
 
-            return faculty;
+      const faculty = new Faculty();
 
-        } catch (error) {
+      faculty.name = createFacultyDto.name;
+      faculty.department = createFacultyDto.department;
+      faculty.email = createFacultyDto.email;
+      faculty.phone = createFacultyDto.phone;
+      faculty.status = status;
 
-            if (error instanceof ErrorManager) {
-                ErrorManager.createAsignatureError(error.message);
-            }
+      return this.facultyRepository.create(faculty);
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
 
-            throw error;
+      throw error;
+    }
+  }
+
+  async update(
+    idFaculty: number,
+    updateFacultyDto: UpdateFacultyDto,
+  ): Promise<Faculty> {
+    try {
+      const faculty = await this.findById(idFaculty);
+
+      if (updateFacultyDto.name !== undefined) {
+        const existingFaculty = await this.facultyRepository.findByName(
+          updateFacultyDto.name,
+        );
+
+        if (existingFaculty && existingFaculty.id !== idFaculty) {
+          throw new ErrorManager({
+            type: 'CONFLICT',
+            message: `Ya existe una facultad con el nombre "${updateFacultyDto.name}"`,
+          });
         }
-    }
 
-    async create(
-        createFacultyDto: CreateFacultyDto,
-    ): Promise<Faculty> {
+        faculty.name = updateFacultyDto.name;
+      }
 
-        try {
+      if (updateFacultyDto.department !== undefined) {
+        faculty.department = updateFacultyDto.department;
+      }
 
-            const existingFaculty =
-                await this.facultyRepository.findByName(
-                    createFacultyDto.name,
-                );
+      if (updateFacultyDto.email !== undefined) {
+        faculty.email = updateFacultyDto.email;
+      }
 
-            if (existingFaculty) {
-                throw new ErrorManager({
-                    type: 'CONFLICT',
-                    message: `Ya existe una facultad con el nombre "${createFacultyDto.name}"`,
-                });
-            }
+      if (updateFacultyDto.phone !== undefined) {
+        faculty.phone = updateFacultyDto.phone;
+      }
 
-            const status =
-                await this.statusRepository.findById(createFacultyDto.statusId);
+      if (updateFacultyDto.statusId !== undefined) {
+        const status = await this.statusRepository.findById(
+          updateFacultyDto.statusId,
+        );
 
-            if (!status) {
-                throw new ErrorManager({
-                    type: 'NOT_FOUND',
-                    message: 'No se encontró el estado',
-                });
-            }
-
-            const faculty = new Faculty();
-
-            faculty.name = createFacultyDto.name;
-            faculty.department = createFacultyDto.department;
-            faculty.email = createFacultyDto.email;
-            faculty.phone = createFacultyDto.phone;
-            faculty.status = status;
-
-            return this.facultyRepository.create(faculty);
-
-        } catch (error) {
-
-            if (error instanceof ErrorManager) {
-                ErrorManager.createAsignatureError(error.message);
-            }
-
-            throw error;
+        if (!status) {
+          throw new ErrorManager({
+            type: 'NOT_FOUND',
+            message: `No se encontró el estado .`,
+          });
         }
+
+        faculty.status = status;
+      }
+
+      const updatedFaculty = await this.facultyRepository.update(
+        idFaculty,
+        faculty,
+      );
+
+      if (!updatedFaculty) {
+        throw new ErrorManager({
+          type: 'NOT_FOUND',
+          message: `No se pudo actualizar la facultad.`,
+        });
+      }
+
+      return updatedFaculty;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
     }
+  }
 
-    async update(
-        idFaculty: number,
-        updateFacultyDto: UpdateFacultyDto,
-    ): Promise<Faculty> {
+  async remove(idFaculty: number): Promise<void> {
+    try {
+      await this.findById(idFaculty);
 
-        try {
+      await this.facultyRepository.delete(idFaculty);
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
 
-            const faculty =
-                await this.findById(idFaculty);
-
-            if (updateFacultyDto.name !== undefined) {
-
-                const existingFaculty =
-                    await this.facultyRepository.findByName(
-                        updateFacultyDto.name,
-                    );
-
-                if (
-                    existingFaculty &&
-                    existingFaculty.id !== idFaculty
-                ) {
-                    throw new ErrorManager({
-                        type: 'CONFLICT',
-                        message: `Ya existe una facultad con el nombre "${updateFacultyDto.name}"`,
-                    });
-                }
-
-                faculty.name = updateFacultyDto.name;
-            }
-
-            if (updateFacultyDto.department !== undefined) {
-                faculty.department =
-                    updateFacultyDto.department;
-            }
-
-            if (updateFacultyDto.email !== undefined) {
-                faculty.email =
-                    updateFacultyDto.email;
-            }
-
-            if (updateFacultyDto.phone !== undefined) {
-                faculty.phone =
-                    updateFacultyDto.phone;
-            }
-
-            if (updateFacultyDto.statusId !== undefined) {
-
-                const status =
-                    await this.statusRepository.findById(
-                        updateFacultyDto.statusId,
-                    );
-
-                if (!status) {
-                    throw new ErrorManager({
-                        type: 'NOT_FOUND',
-                        message: `No se encontró el estado .`,
-                    });
-                }
-
-                faculty.status = status;
-            }
-
-            const updatedFaculty =
-                await this.facultyRepository.update(
-                    idFaculty,
-                    faculty,
-                );
-
-            if (!updatedFaculty) {
-                throw new ErrorManager({
-                    type: 'NOT_FOUND',
-                    message: `No se pudo actualizar la facultad.`,
-                });
-            }
-
-            return updatedFaculty;
-
-        } catch (error) {
-
-            if (error instanceof ErrorManager) {
-                ErrorManager.createAsignatureError(error.message);
-            }
-
-            throw error;
-        }
+      throw error;
     }
-
-    async remove(idFaculty: number): Promise<void> {
-
-        try {
-
-            await this.findById(idFaculty);
-
-            await this.facultyRepository.delete(idFaculty);
-
-        } catch (error) {
-
-            if (error instanceof ErrorManager) {
-                ErrorManager.createAsignatureError(error.message);
-            }
-
-            throw error;
-        }
-    }
+  }
 }

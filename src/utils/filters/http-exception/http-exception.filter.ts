@@ -25,9 +25,7 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
         errorManager.type ?? errorManager.message.split(' :: ')[0],
       );
       message = exception.message;
-    }
-
-    else if (exception instanceof HttpException) {
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
 
       const exceptionResponse = exception.getResponse();
@@ -38,9 +36,11 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
         typeof exceptionResponse === 'object' &&
         exceptionResponse !== null
       ) {
-        const responseMessage = (exceptionResponse as {
-          message?: string | string[];
-        }).message;
+        const responseMessage = (
+          exceptionResponse as {
+            message?: string | string[];
+          }
+        ).message;
 
         if (Array.isArray(responseMessage)) {
           message = responseMessage.join(', ');
@@ -48,9 +48,7 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
           message = responseMessage;
         }
       }
-    }
-
-    else if (exception instanceof Error) {
+    } else if (exception instanceof Error) {
       message = exception.message;
     }
 
@@ -73,9 +71,6 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
       INTERNAL_SERVER_ERROR: HttpStatus.INTERNAL_SERVER_ERROR,
     };
 
-    return (
-      statusCodes[type] ??
-      HttpStatus.INTERNAL_SERVER_ERROR
-    );
+    return statusCodes[type] ?? HttpStatus.INTERNAL_SERVER_ERROR;
   }
 }
