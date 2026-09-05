@@ -7,13 +7,14 @@ import {
   ParseIntPipe,
   Post,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { CreateStatusDto } from '../dto/state.dto';
 import { Status } from '../entities/state.entity';
 import { StatusService } from '../services/state.service';
 import { Action } from '../../auth/constants/action.enum';
 import { Module } from '../../auth/constants/module.enum';
 import { RequirePermission } from '../../auth/decorators/permission/permission.decorator';
-
+@ApiBearerAuth('access-token')
 @Controller('statuses')
 export class StatusController {
   constructor(private readonly statusService: StatusService) {}

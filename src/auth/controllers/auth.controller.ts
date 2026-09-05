@@ -9,7 +9,13 @@ import {
   Post,
 } from '@nestjs/common';
 
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { UserService } from '../services/auth.service';
 import { User } from '../entities/auth.entity';
@@ -44,7 +50,7 @@ export class UserController {
     const { username, password } = validarCredenciales;
     return this.authService.validateCredentials(username, password);
   }
-
+  @ApiBearerAuth('access-token')
   @Get('users')
   @ApiOperation({
     summary: 'Obtener todos los usuarios',
@@ -60,6 +66,7 @@ export class UserController {
   }
 
   @Get('users/:id')
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Obtener un usuario por ID',
   })
@@ -92,6 +99,7 @@ export class UserController {
     return this.authService.create(createUserDto);
   }
 
+  @ApiBearerAuth('access-token')
   @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
   @Patch('users/:id')
   @ApiOperation({
@@ -115,6 +123,7 @@ export class UserController {
     return this.authService.update(id, updateUserDto);
   }
 
+  @ApiBearerAuth('access-token')
   @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
   @Delete('users/:id')
   @ApiOperation({
