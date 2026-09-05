@@ -69,9 +69,6 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    /**
-     * 8. Verificar acción específica
-     */
     const tieneAccion = acceso.acciones?.includes(permission.action);
 
     if (!tieneAccion) {

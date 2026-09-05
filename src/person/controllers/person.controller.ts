@@ -10,7 +10,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth/jwt-auth.guard';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { PersonService } from '../services/person.service';
 import { Person } from '../entities/person.entity';
@@ -18,7 +24,7 @@ import { CreatePersonDto, UpdatePersonDto } from '../dto/person.dto';
 import { Action } from '../../auth/constants/action.enum';
 import { Module } from '../../auth/constants/module.enum';
 import { RequirePermission } from '../../auth/decorators/permission/permission.decorator';
-
+@ApiBearerAuth('access-token')
 @ApiTags('Personas')
 @Controller('persons')
 @UseGuards(JwtAuthGuard)

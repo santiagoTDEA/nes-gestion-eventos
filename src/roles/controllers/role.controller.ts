@@ -8,12 +8,13 @@ import {
   Post,
 } from '@nestjs/common';
 import { RolesService } from '../services/roles.service';
-
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { Role } from '../entities/role.entity';
 import { CreateRoleDto, UpdateRoleDto } from '../dto/create-role.dto/role.dto';
 import { Action } from '../../auth/constants/action.enum';
 import { Module } from '../../auth/constants/module.enum';
 import { RequirePermission } from '../../auth/decorators/permission/permission.decorator';
+@ApiBearerAuth('access-token')
 @Controller('roles')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
