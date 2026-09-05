@@ -9,6 +9,11 @@ import { HttpExceptionFilter } from './utils/filters/http-exception/http-excepti
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get<ConfigService<Env, true>>(ConfigService);
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   app.setGlobalPrefix('gestion-eventos');
   app.useGlobalPipes(
     new ValidationPipe({
