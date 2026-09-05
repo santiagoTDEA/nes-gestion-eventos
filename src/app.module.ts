@@ -2,7 +2,14 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Env } from './enviroments/models/enviroment.model';
-import { RolesModule } from './roles/roles.module';
+import { FacultyModule } from './faculty/faculty.module';
+import { StateModule } from './state/state.module';
+import { PersonModule } from './person/person.module';
+import { RoleModule } from './roles/roles.module';
+import { AuthModule } from './auth/auth.module';
+import { PermissionGuard } from './auth/guards/permission/permission.guard';
+import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -24,9 +31,22 @@ import { RolesModule } from './roles/roles.module';
       }),
       inject: [ConfigService],
     }),
-    RolesModule,
+    RoleModule,
+    FacultyModule,
+    StateModule,
+    PersonModule,
+    AuthModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
+    },
+  ],
 })
 export class AppModule {}

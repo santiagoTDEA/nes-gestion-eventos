@@ -10,3 +10,4 @@ npm-debug.log*
 README.md
 Dockerfile
 docker-compose.yml
+src/enviroments/.env

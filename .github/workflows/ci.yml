@@ -3,6 +3,7 @@ name: Integracion continua
 on:
   push:
     branches: [main, QA]
+
   pull_request:
     branches: [main, QA]
 
@@ -33,5 +34,8 @@ jobs:
       - name: Compilar aplicacion
         run: npm run build
 
-      - name: Ejecutar pruebas unitarias sin tests
+      - name: Ejecutar pruebas unitarias
         run: npm test -- --runInBand --passWithNoTests
+
+      - name: Construir imagen Docker
+        run: docker build -t gestion-eventos-api:qa .
