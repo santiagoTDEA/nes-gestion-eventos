@@ -9,7 +9,13 @@ import {
   Post,
 } from '@nestjs/common';
 
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { Faculty } from '../entities/faculty.entity';
 import { CreateFacultyDto, UpdateFacultyDto } from '../dto/faculty.dto';
@@ -17,7 +23,7 @@ import { FacultyService } from '../services/faculty.service';
 import { Action } from '../../auth/constants/action.enum';
 import { Module } from '../../auth/constants/module.enum';
 import { RequirePermission } from '../../auth/decorators/permission/permission.decorator';
-
+@ApiBearerAuth('access-token')
 @ApiTags('Facultades')
 @Controller('faculties')
 export class FacultyController {
