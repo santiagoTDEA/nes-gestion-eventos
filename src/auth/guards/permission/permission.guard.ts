@@ -1,7 +1,15 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../decorators/public/public.decorator';
-import { PERMISSION_KEY, PermissionMetadata } from '../../decorators/permission/permission.decorator';
+import {
+  PERMISSION_KEY,
+  PermissionMetadata,
+} from '../../decorators/permission/permission.decorator';
 import { Action } from '../../constants/action.enum';
 
 @Injectable()
