@@ -19,25 +19,25 @@ import { RequirePermission } from '../../auth/decorators/permission/permission.d
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.CREAR)
+  @RequirePermission(Module.ROLES, Action.CREAR)
   @Post()
   async create(@Body() createRoleDto: CreateRoleDto): Promise<Role> {
     return this.rolesService.create(createRoleDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
   @Get()
   async findAll(): Promise<Role[]> {
     return this.rolesService.findAll();
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Role> {
     return this.rolesService.findOne(id);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.EDITAR)
+  @RequirePermission(Module.ROLES, Action.EDITAR)
   @Patch(':id')
   async update(
     @Param('id') id: string,
@@ -46,7 +46,7 @@ export class RolesController {
     return this.rolesService.update(id, updateRoleDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
+  @RequirePermission(Module.ROLES, Action.ELIMINAR)
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<void> {
     return this.rolesService.remove(id);

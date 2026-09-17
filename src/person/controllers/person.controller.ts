@@ -31,7 +31,7 @@ import { RequirePermission } from '../../auth/decorators/permission/permission.d
 export class PersonController {
   constructor(private readonly personService: PersonService) {}
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.PERSONAS, Action.VER, { isCatalog: true })
   @Get()
   @ApiOperation({
     summary: 'Obtener todas las personas',
@@ -45,7 +45,7 @@ export class PersonController {
     return this.personService.findAll();
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.PERSONAS, Action.VER, { isCatalog: true })
   @Get(':id')
   @ApiOperation({
     summary: 'Obtener una persona por ID',
@@ -64,7 +64,7 @@ export class PersonController {
     return this.personService.findById(id);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.CREAR)
+  @RequirePermission(Module.PERSONAS, Action.CREAR)
   @Post()
   @ApiOperation({
     summary: 'Crear una persona',
@@ -78,7 +78,7 @@ export class PersonController {
     return this.personService.create(createPersonDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.EDITAR)
+  @RequirePermission(Module.PERSONAS, Action.EDITAR)
   @Patch(':id')
   @ApiOperation({
     summary: 'Actualizar una persona',
@@ -100,7 +100,7 @@ export class PersonController {
     return this.personService.update(id, updatePersonDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
+  @RequirePermission(Module.PERSONAS, Action.ELIMINAR)
   @Delete(':id')
   @ApiOperation({
     summary: 'Eliminar una persona',

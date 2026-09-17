@@ -7,10 +7,16 @@ export const PERMISSION_KEY = 'permission';
 export interface PermissionMetadata {
   module: Module;
   action: Action;
+  isCatalog?: boolean;
 }
 
-export const RequirePermission = (module: Module, action: Action) =>
+export const RequirePermission = (
+  module: Module,
+  action: Action,
+  options?: { isCatalog?: boolean },
+) =>
   SetMetadata(PERMISSION_KEY, {
     module,
     action,
+    isCatalog: options?.isCatalog ?? false,
   });

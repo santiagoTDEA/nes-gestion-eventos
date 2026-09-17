@@ -19,13 +19,13 @@ import { RequirePermission } from '../../auth/decorators/permission/permission.d
 export class StatusController {
   constructor(private readonly statusService: StatusService) {}
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ESTADOS, Action.VER, { isCatalog: true })
   @Get()
   async findAll(): Promise<Status[]> {
     return this.statusService.findAll();
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ESTADOS, Action.VER, { isCatalog: true })
   @Get(':idStatus')
   async findById(
     @Param('idStatus', ParseIntPipe) idStatus: number,
@@ -33,13 +33,13 @@ export class StatusController {
     return this.statusService.findById(idStatus);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.CREAR)
+  @RequirePermission(Module.ESTADOS, Action.CREAR)
   @Post()
   async create(@Body() createStatusDto: CreateStatusDto): Promise<Status> {
     return this.statusService.create(createStatusDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
+  @RequirePermission(Module.ESTADOS, Action.ELIMINAR)
   @Delete(':idStatus')
   async remove(
     @Param('idStatus', ParseIntPipe) idStatus: number,

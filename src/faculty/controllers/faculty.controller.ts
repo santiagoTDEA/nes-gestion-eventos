@@ -29,7 +29,7 @@ import { RequirePermission } from '../../auth/decorators/permission/permission.d
 export class FacultyController {
   constructor(private readonly facultyService: FacultyService) {}
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.FACULTADES, Action.VER, { isCatalog: true })
   @Get()
   @ApiOperation({
     summary: 'Obtener todas las facultades',
@@ -43,7 +43,7 @@ export class FacultyController {
     return this.facultyService.findAll();
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.FACULTADES, Action.VER, { isCatalog: true })
   @Get(':id')
   @ApiOperation({
     summary: 'Obtener una facultad por ID',
@@ -62,7 +62,7 @@ export class FacultyController {
     return this.facultyService.findById(id);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.CREAR)
+  @RequirePermission(Module.FACULTADES, Action.CREAR)
   @Post()
   @ApiOperation({
     summary: 'Crear una facultad',
@@ -76,7 +76,7 @@ export class FacultyController {
     return this.facultyService.create(createFacultyDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.EDITAR)
+  @RequirePermission(Module.FACULTADES, Action.EDITAR)
   @Patch(':id')
   @ApiOperation({
     summary: 'Actualizar una facultad',
@@ -98,7 +98,7 @@ export class FacultyController {
     return this.facultyService.update(id, updateFacultyDto);
   }
 
-  @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
+  @RequirePermission(Module.FACULTADES, Action.ELIMINAR)
   @Delete(':id')
   @ApiOperation({
     summary: 'Eliminar una facultad',

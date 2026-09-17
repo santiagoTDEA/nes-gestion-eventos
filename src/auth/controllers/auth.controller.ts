@@ -60,7 +60,7 @@ export class UserController {
     description: 'Usuarios obtenidos correctamente',
     type: [User],
   })
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
   async findAll(): Promise<User[]> {
     return this.authService.findAll();
   }
@@ -80,7 +80,7 @@ export class UserController {
     description: 'Usuario encontrado correctamente',
     type: User,
   })
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
+  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
   async findById(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.authService.findById(id);
   }
@@ -100,7 +100,6 @@ export class UserController {
   }
 
   @ApiBearerAuth('access-token')
-  @RequirePermission(Module.GESTION_EVENTOS, Action.VER)
   @Patch('users/:id')
   @ApiOperation({
     summary: 'Actualizar un usuario',
@@ -115,7 +114,7 @@ export class UserController {
     description: 'Usuario actualizado correctamente',
     type: User,
   })
-  @RequirePermission(Module.GESTION_EVENTOS, Action.EDITAR)
+  @RequirePermission(Module.ROLES, Action.EDITAR)
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -124,7 +123,7 @@ export class UserController {
   }
 
   @ApiBearerAuth('access-token')
-  @RequirePermission(Module.GESTION_EVENTOS, Action.ELIMINAR)
+  @RequirePermission(Module.ROLES, Action.ELIMINAR)
   @Delete('users/:id')
   @ApiOperation({
     summary: 'Eliminar un usuario',

@@ -1,15 +1,8 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../decorators/public/public.decorator';
-import {
-  PERMISSION_KEY,
-  PermissionMetadata,
-} from '../../decorators/permission/permission.decorator';
+import { PERMISSION_KEY, PermissionMetadata } from '../../decorators/permission/permission.decorator';
+import { Action } from '../../constants/action.enum';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -37,7 +30,6 @@ export class PermissionGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-
     const user = request.user;
 
     if (!user) {
@@ -51,6 +43,10 @@ export class PermissionGuard implements CanActivate {
     }
 
     if (role.permissionsFull && role.modulesFull) {
+      return true;
+    }
+
+    if (permission.action === Action.VER && permission.isCatalog) {
       return true;
     }
 
