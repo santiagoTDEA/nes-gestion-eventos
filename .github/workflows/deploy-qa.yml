@@ -1,0 +1,41 @@
+name: Deploy QA
+
+on:
+  push:
+    branches:
+      - QA
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    name: Construir y publicar imagen Docker
+    runs-on: ubuntu-latest
+    environment: QA
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Iniciar sesión en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir imagen Docker
+        run: |
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gestion-eventos-api:qa"
+
+          docker build \
+            -t "$IMAGE_NAME" \
+            .
+
+      - name: Publicar imagen Docker
+        run: |
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/gestion-eventos-api:qa"
+
+          docker push "$IMAGE_NAME"

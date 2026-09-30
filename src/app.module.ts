@@ -1,18 +1,51 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
-import { GetHelloUseCase } from './application/use-cases/get-hello.use-case';
-import { AppController } from './infrastructure/http/controllers/app.controller';
-import { RequestHeadersInterceptor } from './infrastructure/http/interceptors/request-headers.interceptor';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Env } from './enviroments/models/enviroment.model';
+import { FacultyModule } from './faculty/faculty.module';
+import { StateModule } from './state/state.module';
+import { PersonModule } from './person/person.module';
+import { RoleModule } from './roles/roles.module';
+import { AuthModule } from './auth/auth.module';
+import { PermissionGuard } from './auth/guards/permission/permission.guard';
+import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true })],
-  controllers: [AppController],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: 'src/enviroments/.env',
+    }),
+    TypeOrmModule.forRootAsync({
+      useFactory: (configService: ConfigService<Env>) => ({
+        type: 'postgres',
+        host: configService.get('POSTGRES_HOST', { infer: true }),
+        port: configService.get('POSTGRES_PORT', { infer: true }),
+        username: configService.get('POSTGRES_USER', { infer: true }),
+        password: configService.get('POSTGRES_PASSWORD', { infer: true }),
+        database: configService.get('POSTGRES_DB', { infer: true }),
+        ssl: true,
+        autoLoadEntities: true,
+        synchronize: true,
+      }),
+      inject: [ConfigService],
+    }),
+    RoleModule,
+    FacultyModule,
+    StateModule,
+    PersonModule,
+    AuthModule,
+  ],
+  controllers: [],
   providers: [
-    GetHelloUseCase,
     {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestHeadersInterceptor,
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
     },
   ],
 })

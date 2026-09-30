@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: gestion_eventos
+      POSTGRES_USER: gestion_eventos_admin
+      POSTGRES_PASSWORD: gestion_eventos_admin
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:9.17
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gestion-eventos.local
+      PGADMIN_DEFAULT_PASSWORD: gestion_eventos_admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+volumes:
+  postgres_data:
+  pgadmin_data:
