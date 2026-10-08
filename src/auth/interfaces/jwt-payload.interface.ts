@@ -1,5 +1,5 @@
 export interface RoleAccessPayload {
-  module?: string;
+  modulo?: string;
   acciones?: string[];
 }
 

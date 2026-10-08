@@ -7,6 +7,7 @@ import { StateModule } from './state/state.module';
 import { PersonModule } from './person/person.module';
 import { RoleModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
+import { EventsModule } from './events/events.module';
 import { PermissionGuard } from './auth/guards/permission/permission.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
@@ -35,6 +36,7 @@ import { APP_GUARD } from '@nestjs/core';
     FacultyModule,
     StateModule,
     PersonModule,
+    EventsModule,
     AuthModule,
   ],
   controllers: [],

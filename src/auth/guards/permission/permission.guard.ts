@@ -59,8 +59,8 @@ export class PermissionGuard implements CanActivate {
     }
 
     const acceso = role.accesos?.find(
-      (acceso: { module: string; acciones: string[] }) =>
-        acceso.module === permission.module,
+      (acceso: { modulo: string; acciones: string[] }) =>
+        acceso.modulo === permission.module,
     );
 
     if (!acceso) {
@@ -73,7 +73,9 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    const tieneAccion = acceso.acciones?.includes(permission.action);
+    const tieneAccion =
+      acceso.acciones?.includes(permission.action) ||
+      (permission.action === Action.VER && acceso.acciones?.includes('leer'));
 
     if (!tieneAccion) {
       throw new ForbiddenException(

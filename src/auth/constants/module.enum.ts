@@ -9,4 +9,5 @@ export enum Module {
   ROLES = 'roles',
   PERSONAS = 'personas',
   ESTADOS = 'estados',
+  EVENTOS = 'eventos',
 }
