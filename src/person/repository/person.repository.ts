@@ -53,6 +53,14 @@ export class PersonRepository {
     });
   }
 
+  /** Persona vinculada a un usuario (con su rol). */
+  async findByUserId(userId: string): Promise<Person | null> {
+    return await this.repository.findOne({
+      where: { user: { id: userId } },
+      relations: { role: true },
+    });
+  }
+
   async findByCedula(cedula: string): Promise<Person | null> {
     return await this.repository.findOne({
       where: { cedula },

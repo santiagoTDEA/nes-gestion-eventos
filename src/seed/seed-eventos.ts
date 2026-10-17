@@ -8,6 +8,7 @@
  *
  * Las contraseñas son SOLO de desarrollo (el backend las guarda tal cual).
  */
+import { randomBytes } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../app.module';
@@ -16,6 +17,9 @@ import { Faculty } from '../faculty/entities/faculty.entity';
 import { Role } from '../roles/entities/role.entity';
 import { Person } from '../person/entities/person.entity';
 import { User } from '../auth/entities/auth.entity';
+
+/** Firma digital única de cada usuario (la misma forma que genera el backend al crear uno). */
+const newSignature = () => `FD-${randomBytes(6).toString('hex').toUpperCase()}`;
 
 const STATUSES = ['Activo', 'Inactivo'];
 
@@ -214,6 +218,7 @@ async function seed(): Promise<void> {
         userRepo.create({
           username: item.username,
           password: item.password,
+          signature: newSignature(),
           status: active,
           person,
         }),
@@ -221,6 +226,13 @@ async function seed(): Promise<void> {
     }
 
     console.log(`OK  ${item.role.name.padEnd(13)} usuario: ${item.username}`);
+  }
+
+  // Usuarios anteriores a la firma digital: se les genera una.
+  for (const user of await userRepo.find()) {
+    if (!user.signature) {
+      await userRepo.update(user.id, { signature: newSignature() });
+    }
   }
 
   await app.close();

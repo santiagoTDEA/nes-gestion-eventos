@@ -14,6 +14,7 @@ import { PersonModule } from '../person/person.module';
 import { RoleModule } from '../roles/roles.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { DiffusionModule } from '../diffusion/diffusion.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DiffusionModule } from '../diffusion/diffusion.module';
     RoleModule,
     NotificationsModule,
     DiffusionModule,
+    AuthModule,
   ],
   controllers: [EventController],
   providers: [EventRepository, EventService, EventNotifier],

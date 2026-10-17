@@ -4,6 +4,7 @@ import { User } from './entities/auth.entity';
 import { StateModule } from '../state/state.module';
 import { UserController } from './controllers/auth.controller';
 import { UserService } from './services/auth.service';
+import { SignatureService } from './services/signature.service';
 import { UserRepository } from './repository/auth.repository';
 import { PersonModule } from '../person/person.module';
 import { JwtModule } from '@nestjs/jwt';
@@ -28,7 +29,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [UserController],
-  providers: [UserRepository, UserService, JwtStrategy],
-  exports: [UserService],
+  providers: [UserRepository, UserService, SignatureService, JwtStrategy],
+  exports: [UserService, SignatureService],
 })
 export class AuthModule {}

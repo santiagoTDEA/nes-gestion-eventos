@@ -13,6 +13,7 @@ import {
 import { EventObservation } from '../entities/event-observation.entity';
 import { EventNotifier } from './event-notifier.service';
 import { DiffusionService } from '../../diffusion/services/diffusion.service';
+import { SignatureService } from '../../auth/services/signature.service';
 import { ErrorManager } from '../../utils/error.manager';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
 import { getOwnerScope } from '../../auth/utils/access-scope.util';
@@ -32,6 +33,7 @@ export class EventService {
     private readonly roleRepository: RoleRepository,
     private readonly notifier: EventNotifier,
     private readonly diffusionService: DiffusionService,
+    private readonly signatureService: SignatureService,
   ) {}
 
   async findAll(user: AuthUser): Promise<Event[]> {
@@ -98,7 +100,12 @@ export class EventService {
         });
       }
 
-      const approvals = await this.buildApprovals(createEventDto.approvals);
+      // Quien crea el evento es su responsable de elaboración; no viene en el body.
+      const approvals = [
+        await this.buildAuthorApproval(user),
+        ...(await this.buildApprovals(createEventDto.approvals)),
+      ];
+      this.assertFlowComplete(approvals);
 
       const event = new Event();
 
@@ -175,6 +182,58 @@ export class EventService {
     }
   }
 
+  /**
+   * Paso de Elaboración: la persona vinculada al usuario que crea el evento, con el
+   * rol Elaboración, fecha de hoy y su nombre como firma. Nace firmado.
+   */
+  private async buildAuthorApproval(user: AuthUser): Promise<EventApproval> {
+    const person = await this.personRepository.findByUserId(user.userId);
+
+    if (!person) {
+      throw new ErrorManager({
+        type: 'BAD_REQUEST',
+        message:
+          'Tu usuario no tiene una persona asociada; no se puede registrar al responsable de elaboración',
+      });
+    }
+
+    const roles = await this.roleRepository.findAll();
+    const role = roles.find((item) => isFirstStep(item.name));
+
+    if (!role) {
+      throw new ErrorManager({
+        type: 'NOT_FOUND',
+        message: 'No existe el rol Elaboración',
+      });
+    }
+
+    const approval = new EventApproval();
+
+    approval.person = person;
+    approval.role = role;
+    approval.date = new Date().toISOString().slice(0, 10);
+    approval.signature = await this.signatureService.getOrCreate(user.userId);
+    approval.status = ApprovalStatus.APROBADO;
+    approval.signedAt = new Date();
+
+    return approval;
+  }
+
+  /** El flujo exige exactamente un responsable por paso: Elaboración, Revisión, Verificación y Validación. */
+  private assertFlowComplete(approvals: EventApproval[]): void {
+    const positions = approvals
+      .map((approval) => flowPosition(approval.role?.name))
+      .sort();
+
+    if (positions.join(',') !== '0,1,2,3') {
+      throw new ErrorManager({
+        type: 'BAD_REQUEST',
+        message:
+          'Debes asignar un responsable de Revisión, uno de Verificación y uno de Validación',
+      });
+    }
+  }
+
   private async buildApprovals(
     approvalDtos: CreateEventDto['approvals'],
     previous: EventApproval[] = [],
@@ -200,14 +259,18 @@ export class EventService {
         });
       }
 
+      // El paso de elaboración lo agrega el servidor con el usuario autenticado.
+      if (isFirstStep(role.name)) {
+        continue;
+      }
+
       const approval = new EventApproval();
 
       approval.person = person;
       approval.role = role;
       approval.date = approvalDto.date;
-      approval.signature = approvalDto.signature;
+      approval.signature = null;
 
-      // Elaboración queda firmada al enviar el formato; el resto espera su turno.
       // Si el paso ya existía con la misma persona, conserva su estado y firma.
       const carried = previous.find(
         (item) => item.role?.id === role.id && item.person?.id === person.id,
@@ -215,10 +278,8 @@ export class EventService {
 
       if (carried) {
         approval.status = carried.status;
+        approval.signature = carried.signature;
         approval.signedAt = carried.signedAt;
-      } else if (isFirstStep(role.name)) {
-        approval.status = ApprovalStatus.APROBADO;
-        approval.signedAt = new Date();
       } else {
         approval.status = ApprovalStatus.PENDIENTE;
         approval.signedAt = null;
@@ -282,6 +343,7 @@ export class EventService {
       const current = await this.resolveCurrentStep(event, user);
 
       current.status = ApprovalStatus.APROBADO;
+      current.signature = await this.signatureService.getOrCreate(user.userId);
       current.signedAt = new Date();
       await this.eventRepository.saveApproval(current);
 
@@ -408,6 +470,19 @@ export class EventService {
   ): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+
+      // Con el flujo de aprobación completo el evento queda cerrado: no se edita.
+      if (
+        event.approvals.length > 0 &&
+        event.approvals.every((step) => step.status === ApprovalStatus.APROBADO)
+      ) {
+        throw new ErrorManager({
+          type: 'CONFLICT',
+          message:
+            'El evento ya completó el flujo de aprobación y no se puede editar',
+        });
+      }
+
       const { facultyId, approvals, ...fields } = updateEventDto;
 
       const normalizeTime = (value: string) => value.slice(0, 5);
@@ -448,7 +523,27 @@ export class EventService {
       }
 
       if (approvals !== undefined) {
-        event.approvals = await this.buildApprovals(approvals, event.approvals);
+        // El autor original se conserva, aunque quien edita sea otra persona.
+        const currentAuthor = event.approvals.find((step) =>
+          isFirstStep(step.role?.name),
+        );
+        const author = currentAuthor
+          ? Object.assign(new EventApproval(), {
+              person: currentAuthor.person,
+              role: currentAuthor.role,
+              date: currentAuthor.date,
+              signature: currentAuthor.signature,
+              status: currentAuthor.status,
+              signedAt: currentAuthor.signedAt,
+            })
+          : await this.buildAuthorApproval(user);
+
+        const rebuilt = [
+          author,
+          ...(await this.buildApprovals(approvals, event.approvals)),
+        ];
+        this.assertFlowComplete(rebuilt);
+        event.approvals = rebuilt;
       }
 
       Object.assign(event, fields);

@@ -55,8 +55,8 @@ export class EventApproval {
     description: 'Firma de la aprobación',
     example: 'Juan Pérez',
   })
-  @Column({ name: 'signature', type: 'text' })
-  signature!: string;
+  @Column({ name: 'signature', type: 'text', nullable: true })
+  signature?: string | null;
 
   @ApiProperty({
     description: 'Estado del paso en el workflow de aprobación',

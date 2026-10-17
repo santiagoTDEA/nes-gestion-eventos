@@ -43,6 +43,15 @@ export class User {
   password!: string;
 
   @ApiProperty({
+    description:
+      'Firma digital única del usuario; se genera sola al crearlo y no se puede cambiar',
+    example: 'FD-7K3M9Q2X4B1A',
+    required: false,
+  })
+  @Column({ type: 'varchar', length: 30, unique: true, nullable: true })
+  signature?: string | null;
+
+  @ApiProperty({
     description: 'Estado actual del usuario',
     type: () => Status,
   })

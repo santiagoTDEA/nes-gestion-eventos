@@ -67,6 +67,14 @@ export class UserRepository {
     });
   }
 
+  async existsSignature(signature: string): Promise<boolean> {
+    return (await this.repository.count({ where: { signature } })) > 0;
+  }
+
+  async saveSignature(id: string, signature: string): Promise<void> {
+    await this.repository.update(id, { signature });
+  }
+
   async findByPersonId(idPerson: number): Promise<User | null> {
     return await this.repository.findOne({
       where: {

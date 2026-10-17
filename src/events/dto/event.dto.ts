@@ -59,12 +59,14 @@ export class CreateEventApprovalDto {
   date!: string;
 
   @ApiProperty({
-    description: 'Firma de la aprobación',
-    example: 'Juan Pérez',
+    required: false,
+    deprecated: true,
+    description:
+      'Ya no se captura en el formulario: la firma se asigna al momento de firmar. Si llega, se ignora',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  signature!: string;
+  signature?: string;
 }
 
 export class CreateEventDto {
@@ -276,11 +278,11 @@ export class CreateEventDto {
 
   @ApiProperty({
     description:
-      'Aprobaciones del evento (elaboración, revisión, verificación y validación)',
+      'Aprobaciones de revisión, verificación y validación. La de elaboración se agrega sola con el usuario que crea el evento',
     type: () => [CreateEventApprovalDto],
   })
   @IsArray()
-  @ArrayMinSize(4)
+  @ArrayMinSize(3)
   @ArrayMaxSize(4)
   @ValidateNested({ each: true })
   @Type(() => CreateEventApprovalDto)

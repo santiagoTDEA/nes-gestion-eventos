@@ -7,6 +7,7 @@ import { ErrorManager } from '../../utils/error.manager';
 import { UserRepository } from '../repository/auth.repository';
 import { CreateUserDto, UpdateUserDto } from '../dto/auth.dto';
 import { JwtService } from '@nestjs/jwt';
+import { SignatureService } from './signature.service';
 @Injectable()
 export class UserService {
   constructor(
@@ -14,6 +15,7 @@ export class UserService {
     private readonly statusRepository: StatusRepository,
     private readonly personRepository: PersonRepository,
     private readonly jwtService: JwtService,
+    private readonly signatureService: SignatureService,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -149,6 +151,7 @@ export class UserService {
       user.username = createUserDto.username;
       user.password = createUserDto.password;
       user.status = status;
+      user.signature = await this.signatureService.generateUnique();
       return await this.userRepository.create(user);
     } catch (error) {
       if (error instanceof ErrorManager) {
