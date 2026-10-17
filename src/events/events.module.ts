@@ -13,6 +13,7 @@ import { FacultyModule } from '../faculty/faculty.module';
 import { PersonModule } from '../person/person.module';
 import { RoleModule } from '../roles/roles.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { DiffusionModule } from '../diffusion/diffusion.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     PersonModule,
     RoleModule,
     NotificationsModule,
+    DiffusionModule,
   ],
   controllers: [EventController],
   providers: [EventRepository, EventService, EventNotifier],

@@ -57,6 +57,7 @@ const FLOW = [
           acciones: ['crear', 'editar', 'eliminar', 'leer'],
         },
         { modulo: 'aprobaciones', acciones: ['leer'] },
+        { modulo: 'difusion', acciones: ['editar', 'leer'] },
       ],
     },
     faculty: 'Facultad de Ingeniería',
@@ -121,6 +122,42 @@ const FLOW = [
     },
     username: 'validacion',
     password: 'Validacion2026*',
+  },
+  {
+    role: {
+      name: 'Comunicaciones',
+      description:
+        'Área de Comunicaciones: diseña piezas gráficas y correos de difusión',
+      accesos: [{ modulo: 'difusion', acciones: ['editar', 'leer'] }],
+    },
+    faculty: 'Extensión Académica',
+    person: {
+      name: 'Camila Comunicaciones',
+      cedula: '1000000005',
+      email: 'comunicaciones@universidad.edu.co',
+      phone: '3000000005',
+      address: 'Calle 5 # 50-05',
+    },
+    username: 'comunicaciones',
+    password: 'Comunicaciones2026*',
+  },
+  {
+    role: {
+      name: 'Producción y Medios',
+      description:
+        'Centro de Producción y Medios: produce los videos promocionales',
+      accesos: [{ modulo: 'difusion', acciones: ['editar', 'leer'] }],
+    },
+    faculty: 'Extensión Académica',
+    person: {
+      name: 'Pablo Producción',
+      cedula: '1000000006',
+      email: 'produccion@universidad.edu.co',
+      phone: '3000000006',
+      address: 'Calle 6 # 60-06',
+    },
+    username: 'produccion',
+    password: 'Produccion2026*',
   },
 ];
 

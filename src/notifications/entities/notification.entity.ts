@@ -20,6 +20,10 @@ export enum NotificationType {
   DEVUELTO = 'devuelto',
   REENVIADO = 'reenviado',
   APROBADO = 'aprobado',
+  DIFUSION_NUEVA = 'difusion_nueva',
+  DIFUSION_ESTADO = 'difusion_estado',
+  DIFUSION_REVISION = 'difusion_revision',
+  DIFUSION_DEVUELTA = 'difusion_devuelta',
 }
 
 @Entity('notifications')

@@ -12,6 +12,7 @@ import {
 } from '../dto/event.dto';
 import { EventObservation } from '../entities/event-observation.entity';
 import { EventNotifier } from './event-notifier.service';
+import { DiffusionService } from '../../diffusion/services/diffusion.service';
 import { ErrorManager } from '../../utils/error.manager';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
 import { getOwnerScope } from '../../auth/utils/access-scope.util';
@@ -30,6 +31,7 @@ export class EventService {
     private readonly personRepository: PersonRepository,
     private readonly roleRepository: RoleRepository,
     private readonly notifier: EventNotifier,
+    private readonly diffusionService: DiffusionService,
   ) {}
 
   async findAll(user: AuthUser): Promise<Event[]> {
@@ -285,6 +287,18 @@ export class EventService {
 
       const updated = await this.findById(idEvent, user);
       await this.notifier.signed(updated, user.userId);
+
+      // Evento aprobado por completo: se generan las solicitudes de difusión que pidió en logística.
+      if (
+        updated.approvals.every(
+          (step) => step.status === ApprovalStatus.APROBADO,
+        )
+      ) {
+        await this.diffusionService.createFromEvent(
+          updated,
+          await this.notifier.authorIds(updated),
+        );
+      }
 
       return updated;
     } catch (error) {

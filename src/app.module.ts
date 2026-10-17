@@ -9,6 +9,7 @@ import { RoleModule } from './roles/roles.module';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DiffusionModule } from './diffusion/diffusion.module';
 import { PermissionGuard } from './auth/guards/permission/permission.guard';
 import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
@@ -39,6 +40,7 @@ import { APP_GUARD } from '@nestjs/core';
     PersonModule,
     EventsModule,
     NotificationsModule,
+    DiffusionModule,
     AuthModule,
   ],
   controllers: [],

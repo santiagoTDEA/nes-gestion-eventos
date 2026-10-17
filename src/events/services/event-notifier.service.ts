@@ -161,6 +161,11 @@ export class EventNotifier {
     });
   }
 
+  /** Usuarios que se consideran autores del evento (creador y persona de Elaboración). */
+  async authorIds(event: Event): Promise<string[]> {
+    return (await this.buildContext(event)).authorIds;
+  }
+
   private async buildContext(event: Event): Promise<WorkflowContext> {
     const users = await this.eventRepository.findApprovalUsers(event.id);
     const steps = [...event.approvals]
