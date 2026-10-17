@@ -60,7 +60,7 @@ export class UserController {
     description: 'Usuarios obtenidos correctamente',
     type: [User],
   })
-  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
+  @RequirePermission(Module.USUARIOS, Action.VER)
   async findAll(): Promise<User[]> {
     return this.authService.findAll();
   }
@@ -80,12 +80,12 @@ export class UserController {
     description: 'Usuario encontrado correctamente',
     type: User,
   })
-  @RequirePermission(Module.ROLES, Action.VER, { isCatalog: true })
+  @RequirePermission(Module.USUARIOS, Action.VER)
   async findById(@Param('id', ParseUUIDPipe) id: string): Promise<User> {
     return this.authService.findById(id);
   }
 
-  @Public()
+  @RequirePermission(Module.USUARIOS, Action.CREAR)
   @Post('users')
   @ApiOperation({
     summary: 'Crear un usuario',
@@ -114,7 +114,7 @@ export class UserController {
     description: 'Usuario actualizado correctamente',
     type: User,
   })
-  @RequirePermission(Module.ROLES, Action.EDITAR)
+  @RequirePermission(Module.USUARIOS, Action.EDITAR)
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -123,7 +123,7 @@ export class UserController {
   }
 
   @ApiBearerAuth('access-token')
-  @RequirePermission(Module.ROLES, Action.ELIMINAR)
+  @RequirePermission(Module.USUARIOS, Action.ELIMINAR)
   @Delete('users/:id')
   @ApiOperation({
     summary: 'Eliminar un usuario',

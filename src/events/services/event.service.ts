@@ -5,8 +5,22 @@ import { PersonRepository } from '../../person/repository/person.repository';
 import { RoleRepository } from '../../roles/repositories/role.repository';
 import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
-import { CreateEventDto, UpdateEventDto } from '../dto/event.dto';
+import {
+  CreateEventDto,
+  ReturnEventDto,
+  UpdateEventDto,
+} from '../dto/event.dto';
+import { EventObservation } from '../entities/event-observation.entity';
+import { EventNotifier } from './event-notifier.service';
 import { ErrorManager } from '../../utils/error.manager';
+import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
+import { getOwnerScope } from '../../auth/utils/access-scope.util';
+import {
+  ApprovalStatus,
+  flowPosition,
+  isFirstStep,
+  WorkflowStatus,
+} from '../constants/approval-flow';
 
 @Injectable()
 export class EventService {
@@ -15,13 +29,14 @@ export class EventService {
     private readonly facultyRepository: FacultyRepository,
     private readonly personRepository: PersonRepository,
     private readonly roleRepository: RoleRepository,
+    private readonly notifier: EventNotifier,
   ) {}
 
-  async findAll(): Promise<Event[]> {
-    return this.eventRepository.findAll();
+  async findAll(user: AuthUser): Promise<Event[]> {
+    return this.eventRepository.findAll(getOwnerScope(user));
   }
 
-  async findById(idEvent: number): Promise<Event> {
+  async findById(idEvent: number, user: AuthUser): Promise<Event> {
     try {
       const event = await this.eventRepository.findById(idEvent);
 
@@ -29,6 +44,19 @@ export class EventService {
         throw new ErrorManager({
           type: 'NOT_FOUND',
           message: `No se encontró el evento con ese ID "${idEvent}"`,
+        });
+      }
+
+      const ownerId = getOwnerScope(user);
+
+      if (
+        ownerId &&
+        (await this.eventRepository.findVisibleIds(ownerId, idEvent)).length ===
+          0
+      ) {
+        throw new ErrorManager({
+          type: 'FORBIDDEN',
+          message: 'No tienes permiso para acceder a este evento',
         });
       }
 
@@ -42,7 +70,7 @@ export class EventService {
     }
   }
 
-  async create(createEventDto: CreateEventDto): Promise<Event> {
+  async create(createEventDto: CreateEventDto, user: AuthUser): Promise<Event> {
     try {
       this.validateBusinessRules(createEventDto);
 
@@ -99,8 +127,12 @@ export class EventService {
       event.confirmedMinimumCapacity = createEventDto.confirmedMinimumCapacity;
       event.financialObservations = createEventDto.financialObservations;
       event.approvals = approvals;
+      event.createdBy = user.userId;
 
-      return this.eventRepository.create(event);
+      const created = await this.eventRepository.create(event);
+      await this.notifier.created(created);
+
+      return created;
     } catch (error) {
       if (error instanceof ErrorManager) {
         ErrorManager.createAsignatureError(error.message);
@@ -143,6 +175,7 @@ export class EventService {
 
   private async buildApprovals(
     approvalDtos: CreateEventDto['approvals'],
+    previous: EventApproval[] = [],
   ): Promise<EventApproval[]> {
     const approvals: EventApproval[] = [];
 
@@ -172,18 +205,195 @@ export class EventService {
       approval.date = approvalDto.date;
       approval.signature = approvalDto.signature;
 
+      // Elaboración queda firmada al enviar el formato; el resto espera su turno.
+      // Si el paso ya existía con la misma persona, conserva su estado y firma.
+      const carried = previous.find(
+        (item) => item.role?.id === role.id && item.person?.id === person.id,
+      );
+
+      if (carried) {
+        approval.status = carried.status;
+        approval.signedAt = carried.signedAt;
+      } else if (isFirstStep(role.name)) {
+        approval.status = ApprovalStatus.APROBADO;
+        approval.signedAt = new Date();
+      } else {
+        approval.status = ApprovalStatus.PENDIENTE;
+        approval.signedAt = null;
+      }
+
       approvals.push(approval);
     }
 
     return approvals;
   }
 
+  /**
+   * Paso del workflow que espera firma. Solo puede actuar sobre él la persona
+   * asignada a ese paso, y solo mientras el evento no esté devuelto.
+   */
+  private async resolveCurrentStep(
+    event: Event,
+    user: AuthUser,
+  ): Promise<EventApproval> {
+    if (event.workflowStatus === WorkflowStatus.DEVUELTO) {
+      throw new ErrorManager({
+        type: 'BAD_REQUEST',
+        message:
+          'El evento fue devuelto al autor; debe corregirlo y reenviarlo antes de continuar',
+      });
+    }
+
+    const steps = [...event.approvals].sort(
+      (a, b) => flowPosition(a.role?.name) - flowPosition(b.role?.name),
+    );
+    const current = steps.find(
+      (step) => step.status !== ApprovalStatus.APROBADO,
+    );
+
+    if (!current) {
+      throw new ErrorManager({
+        type: 'BAD_REQUEST',
+        message: 'El evento ya completó el flujo de aprobación',
+      });
+    }
+
+    const isResponsible = await this.eventRepository.isApprovalOfUser(
+      current.id,
+      user.userId,
+    );
+
+    if (!isResponsible) {
+      throw new ErrorManager({
+        type: 'FORBIDDEN',
+        message: `El paso actual (${current.role?.name}) no está asignado a tu usuario`,
+      });
+    }
+
+    return current;
+  }
+
+  /** Firma el paso actual con la firma ya registrada en el evento. */
+  async approve(idEvent: number, user: AuthUser): Promise<Event> {
+    try {
+      const event = await this.findById(idEvent, user);
+      const current = await this.resolveCurrentStep(event, user);
+
+      current.status = ApprovalStatus.APROBADO;
+      current.signedAt = new Date();
+      await this.eventRepository.saveApproval(current);
+
+      const updated = await this.findById(idEvent, user);
+      await this.notifier.signed(updated, user.userId);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Devuelve el evento al autor con una observación. La cadena queda detenida y
+   * el paso que devolvió sigue pendiente, así el flujo se retoma en él al reenviar.
+   */
+  async returnToAuthor(
+    idEvent: number,
+    dto: ReturnEventDto,
+    user: AuthUser,
+  ): Promise<Event> {
+    try {
+      const event = await this.findById(idEvent, user);
+      const current = await this.resolveCurrentStep(event, user);
+
+      const observation = new EventObservation();
+      observation.event = event;
+      observation.stepRole = current.role.name;
+      observation.author = current.person;
+      observation.observation = dto.observation.trim();
+      await this.eventRepository.saveObservation(observation);
+      await this.eventRepository.setWorkflowStatus(
+        idEvent,
+        WorkflowStatus.DEVUELTO,
+      );
+
+      const updated = await this.findById(idEvent, user);
+      await this.notifier.returned(
+        updated,
+        current.role.name,
+        dto.observation.trim(),
+        user.userId,
+      );
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /** El autor reenvía el evento corregido; el flujo sigue en el paso que lo devolvió. */
+  async resubmit(idEvent: number, user: AuthUser): Promise<Event> {
+    try {
+      const event = await this.findById(idEvent, user);
+
+      if (event.workflowStatus !== WorkflowStatus.DEVUELTO) {
+        throw new ErrorManager({
+          type: 'BAD_REQUEST',
+          message: 'El evento no está devuelto',
+        });
+      }
+
+      const authorStep = event.approvals.find((step) =>
+        isFirstStep(step.role?.name),
+      );
+      const isAuthor =
+        event.createdBy === user.userId ||
+        (!!authorStep &&
+          (await this.eventRepository.isApprovalOfUser(
+            authorStep.id,
+            user.userId,
+          )));
+
+      if (!isAuthor) {
+        throw new ErrorManager({
+          type: 'FORBIDDEN',
+          message: 'Solo el autor del evento puede reenviarlo',
+        });
+      }
+
+      await this.eventRepository.resolveObservations(idEvent);
+      await this.eventRepository.setWorkflowStatus(
+        idEvent,
+        WorkflowStatus.EN_FLUJO,
+      );
+
+      const updated = await this.findById(idEvent, user);
+      await this.notifier.resubmitted(updated);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
   async update(
     idEvent: number,
     updateEventDto: UpdateEventDto,
+    user: AuthUser,
   ): Promise<Event> {
     try {
-      const event = await this.findById(idEvent);
+      const event = await this.findById(idEvent, user);
       const { facultyId, approvals, ...fields } = updateEventDto;
 
       const normalizeTime = (value: string) => value.slice(0, 5);
@@ -224,7 +434,7 @@ export class EventService {
       }
 
       if (approvals !== undefined) {
-        event.approvals = await this.buildApprovals(approvals);
+        event.approvals = await this.buildApprovals(approvals, event.approvals);
       }
 
       Object.assign(event, fields);
@@ -243,9 +453,9 @@ export class EventService {
     }
   }
 
-  async remove(idEvent: number): Promise<void> {
+  async remove(idEvent: number, user: AuthUser): Promise<void> {
     try {
-      await this.findById(idEvent);
+      await this.findById(idEvent, user);
 
       await this.eventRepository.delete(idEvent);
     } catch (error) {

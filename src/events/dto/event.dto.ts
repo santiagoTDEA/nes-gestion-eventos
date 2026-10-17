@@ -288,3 +288,17 @@ export class CreateEventDto {
 }
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {}
+
+export class ReturnEventDto {
+  @ApiProperty({
+    description: 'Motivo por el que el evento se devuelve al autor',
+    example: 'El presupuesto no cubre el costo de la transmisión.',
+    minLength: 10,
+    maxLength: 1000,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(10)
+  @MaxLength(1000)
+  observation!: string;
+}

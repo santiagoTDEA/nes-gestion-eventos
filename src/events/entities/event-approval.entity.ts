@@ -10,6 +10,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Person } from '../../person/entities/person.entity';
 import { Role } from '../../roles/entities/role.entity';
 import { Event } from './event.entity';
+import { ApprovalStatus } from '../constants/approval-flow';
 
 @Entity('event_approvals')
 export class EventApproval {
@@ -56,4 +57,24 @@ export class EventApproval {
   })
   @Column({ name: 'signature', type: 'text' })
   signature!: string;
+
+  @ApiProperty({
+    description: 'Estado del paso en el workflow de aprobación',
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDIENTE,
+  })
+  @Column({
+    name: 'status',
+    type: 'varchar',
+    length: 20,
+    default: ApprovalStatus.PENDIENTE,
+  })
+  status!: ApprovalStatus;
+
+  @ApiProperty({
+    description: 'Fecha y hora en que el responsable firmó el paso',
+    required: false,
+  })
+  @Column({ name: 'signed_at', type: 'timestamp', nullable: true })
+  signedAt?: Date | null;
 }

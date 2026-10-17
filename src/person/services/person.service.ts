@@ -95,6 +95,7 @@ export class PersonService {
 
       const person = new Person();
 
+      person.name = createPersonDto.name;
       person.cedula = createPersonDto.cedula;
       person.email = createPersonDto.email;
       person.phone = createPersonDto.phone;
@@ -141,6 +142,10 @@ export class PersonService {
   ): Promise<Person> {
     try {
       const person = await this.findByIdForUpdate(idPerson);
+
+      if (updatePersonDto.name !== undefined) {
+        person.name = updatePersonDto.name;
+      }
 
       if (updatePersonDto.cedula !== undefined) {
         const existingPerson = await this.personRepository.findByCedula(

@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -37,6 +38,9 @@ export class CreateUserDto {
     example: 1,
     required: false,
   })
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
   @IsOptional()
   @IsInt()
   personId?: number;
@@ -82,6 +86,12 @@ export class UpdateUserDto {
     example: 1,
     required: false,
   })
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : value,
+  )
   @IsOptional()
   @IsInt()
   @IsNotEmpty()

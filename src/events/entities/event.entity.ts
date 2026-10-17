@@ -11,6 +11,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 import { Faculty } from '../../faculty/entities/faculty.entity';
 import { EventApproval } from './event-approval.entity';
+import { EventObservation } from './event-observation.entity';
+import { WorkflowStatus } from '../constants/approval-flow';
 
 @Entity('event_forms')
 export class Event {
@@ -218,6 +220,34 @@ export class Event {
     cascade: true,
   })
   approvals!: EventApproval[];
+
+  @ApiProperty({
+    description: 'Estado del evento en el workflow: en_flujo o devuelto',
+    enum: WorkflowStatus,
+    example: WorkflowStatus.EN_FLUJO,
+  })
+  @Column({
+    name: 'workflow_status',
+    type: 'varchar',
+    length: 20,
+    default: WorkflowStatus.EN_FLUJO,
+  })
+  workflowStatus!: WorkflowStatus;
+
+  @ApiProperty({
+    description: 'Historial de observaciones con las que se devolvió el evento',
+    type: () => [EventObservation],
+  })
+  @OneToMany(() => EventObservation, (observation) => observation.event)
+  observations!: EventObservation[];
+
+  @ApiProperty({
+    description:
+      'Id del usuario (token) que creó el evento. Nulo en eventos anteriores a este campo',
+    required: false,
+  })
+  @Column({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null;
 
   @ApiProperty({ description: 'Fecha de creación del evento' })
   @CreateDateColumn({ name: 'created_at' })

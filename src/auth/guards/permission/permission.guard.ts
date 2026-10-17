@@ -11,6 +11,7 @@ import {
   PermissionMetadata,
 } from '../../decorators/permission/permission.decorator';
 import { Action } from '../../constants/action.enum';
+import { expandActions, hasGlobalAccess } from '../../utils/access-scope.util';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -50,7 +51,7 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('El usuario no tiene un rol asignado.');
     }
 
-    if (role.permissionsFull && role.modulesFull) {
+    if (hasGlobalAccess(role)) {
       return true;
     }
 
@@ -73,9 +74,7 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    const tieneAccion =
-      acceso.acciones?.includes(permission.action) ||
-      (permission.action === Action.VER && acceso.acciones?.includes('leer'));
+    const tieneAccion = expandActions(acceso.acciones).has(permission.action);
 
     if (!tieneAccion) {
       throw new ForbiddenException(

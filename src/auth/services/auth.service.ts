@@ -91,7 +91,6 @@ export class UserService {
         },
         status: user.status.statusName,
       };
-
       const accessToken = await this.jwtService.signAsync(payload);
 
       return {

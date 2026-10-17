@@ -13,6 +13,16 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreatePersonDto {
   @ApiProperty({
+    description: 'Nombre completo de la persona',
+    example: 'Juan Pérez',
+    maxLength: 150,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  name!: string;
+
+  @ApiProperty({
     description: 'Número de cédula de ciudadanía colombiana',
     example: '1034567890',
     minLength: 8,
@@ -83,6 +93,18 @@ export class CreatePersonDto {
 }
 
 export class UpdatePersonDto {
+  @ApiProperty({
+    description: 'Nombre completo de la persona',
+    example: 'Juan Pérez',
+    maxLength: 150,
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  name?: string;
+
   @ApiProperty({
     description: 'Número de cédula de la persona',
     example: '1034567890',

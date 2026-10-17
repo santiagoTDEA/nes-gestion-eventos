@@ -24,6 +24,18 @@ export class Person {
   id!: number;
 
   @ApiProperty({
+    description: 'Nombre completo de la persona',
+    example: 'Juan Pérez',
+    maxLength: 150,
+  })
+  @Column({
+    name: 'name',
+    length: 150,
+    nullable: true,
+  })
+  name!: string;
+
+  @ApiProperty({
     description: 'Número de cédula de la persona',
     example: '1034567890',
     maxLength: 10,
