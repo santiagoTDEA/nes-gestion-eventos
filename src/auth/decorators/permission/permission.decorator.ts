@@ -5,9 +5,10 @@ import { Action } from '../../constants/action.enum';
 export const PERMISSION_KEY = 'permission';
 
 export interface PermissionMetadata {
-  module: Module;
-  action: Action;
+  module?: Module;
+  action?: Action;
   isCatalog?: boolean;
+  anyOf?: Array<{ module: Module; action: Action }>;
 }
 
 export const RequirePermission = (
@@ -20,3 +21,7 @@ export const RequirePermission = (
     action,
     isCatalog: options?.isCatalog ?? false,
   });
+
+export const RequireAnyPermission = (
+  ...permissions: Array<{ module: Module; action: Action }>
+) => SetMetadata(PERMISSION_KEY, { anyOf: permissions });

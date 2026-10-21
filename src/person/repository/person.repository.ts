@@ -41,6 +41,18 @@ export class PersonRepository {
       },
     });
   }
+
+  async findByUserId(userId: string): Promise<Person | null> {
+    return this.repository.findOne({
+      where: { user: { id: userId } },
+      relations: {
+        faculty: true,
+        status: true,
+        role: true,
+        user: true,
+      },
+    });
+  }
   async findByIdForUpdate(id: number): Promise<Person | null> {
     return await this.repository.findOne({
       where: { id },

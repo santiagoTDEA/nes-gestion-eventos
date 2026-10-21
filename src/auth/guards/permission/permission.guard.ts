@@ -50,34 +50,51 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('El usuario no tiene un rol asignado.');
     }
 
-    if (role.permissionsFull && role.modulesFull) {
+    if (
+      (role.permissionsFull && role.modulesFull) ||
+      ['admin', 'administrador'].includes(
+        String(role.name ?? '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim(),
+      )
+    ) {
       return true;
     }
 
-    if (permission.action === Action.VER && permission.isCatalog) {
-      return true;
-    }
+    const requirements =
+      permission.anyOf ??
+      (permission.module && permission.action
+        ? [{ module: permission.module, action: permission.action }]
+        : []);
+    const permitted = requirements.some((requirement) => {
+      if (permission.isCatalog && requirement.action === Action.VER) {
+        return true;
+      }
 
-    const acceso = role.accesos?.find(
-      (acceso: { module: string; acciones: string[] }) =>
-        acceso.module === permission.module,
-    );
+      if (role.permissionsFull) {
+        return true;
+      }
 
-    if (!acceso) {
-      throw new ForbiddenException(
-        `No tienes acceso al módulo "${permission.module}".`,
+      const acceso = role.accesos?.find(
+        (item: { module?: string; modulo?: string; acciones: string[] }) =>
+          (item.module ?? item.modulo) === requirement.module,
       );
-    }
+      if (!acceso) {
+        return false;
+      }
 
-    if (role.permissionsFull) {
-      return true;
-    }
+      const actionAliases =
+        requirement.action === Action.VER
+          ? [Action.VER, 'leer']
+          : [requirement.action];
+      return actionAliases.some((action) => acceso.acciones?.includes(action));
+    });
 
-    const tieneAccion = acceso.acciones?.includes(permission.action);
-
-    if (!tieneAccion) {
+    if (!permitted) {
       throw new ForbiddenException(
-        `No tienes permiso para realizar la acción "${permission.action}" en el módulo "${permission.module}".`,
+        'No tienes permisos para realizar esta acción.',
       );
     }
 
