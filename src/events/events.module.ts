@@ -6,12 +6,14 @@ import { RoleModule } from '../roles/roles.module';
 import { Event } from './entities/event.entity';
 import { EventApproval } from './entities/event-approval.entity';
 import { EventObservation } from './entities/event-observation.entity';
+import { EventSchedule } from './entities/event-schedule.entity';
+import { Faculty } from '../faculty/entities/faculty.entity';
 import { EventsController } from './controllers/events.controller';
 import { EventsService } from './services/events.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Event, EventApproval, EventObservation, Faculty]),
+    TypeOrmModule.forFeature([Event, EventApproval, EventObservation, EventSchedule, Faculty]),
     FacultyModule,
     PersonModule,
     RoleModule,

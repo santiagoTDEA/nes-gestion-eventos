@@ -11,6 +11,7 @@ import { Faculty } from '../../faculty/entities/faculty.entity';
 import { User } from '../../auth/entities/auth.entity';
 import { EventApproval } from './event-approval.entity';
 import { EventObservation } from './event-observation.entity';
+import { EventSchedule } from './event-schedule.entity';
 
 export type EventWorkflowStatus = 'en_flujo' | 'devuelto';
 
@@ -118,4 +119,7 @@ export class Event {
 
   @OneToMany(() => EventObservation, (observation) => observation.event)
   observations!: EventObservation[];
+
+  @OneToMany(() => EventSchedule, (schedule) => schedule.event, { cascade: true })
+  schedules!: EventSchedule[];
 }

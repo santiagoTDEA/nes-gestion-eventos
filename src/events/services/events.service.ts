@@ -11,10 +11,16 @@ import { Faculty } from '../../faculty/entities/faculty.entity';
 import { PersonRepository } from '../../person/repository/person.repository';
 import { RoleRepository } from '../../roles/repositories/role.repository';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { CreateEventDto, EventApprovalDto, UpdateEventDto } from '../dto/event.dto';
+import {
+  CreateEventDto,
+  EventApprovalDto,
+  EventScheduleDto,
+  UpdateEventDto,
+} from '../dto/event.dto';
 import { Event, EventWorkflowStatus } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
 import { EventObservation } from '../entities/event-observation.entity';
+import { EventSchedule } from '../entities/event-schedule.entity';
 
 const APPROVAL_STEPS = [
   { order: 1, key: 'revision', title: 'Revisión' },
@@ -29,12 +35,7 @@ const EVENT_FIELDS = [
   'academicProgram',
   'teacherProfile',
   'duration',
-  'startTime',
-  'endTime',
-  'selectedDays',
   'modality',
-  'startDate',
-  'endDate',
   'minimumCapacity',
   'maximumCapacity',
   'participantProfile',
@@ -75,6 +76,7 @@ export interface EventResponse {
   modality: string;
   startDate: string;
   endDate: string;
+  schedules: EventScheduleDto[];
   minimumCapacity: number;
   maximumCapacity: number;
   participantProfile: string;
@@ -123,6 +125,7 @@ export class EventsService {
       .leftJoinAndSelect('approval.role', 'approvalRole')
       .leftJoinAndSelect('event.observations', 'observation')
       .leftJoinAndSelect('observation.author', 'observationAuthor')
+      .leftJoinAndSelect('event.schedules', 'schedule')
       .orderBy('event.createdAt', 'DESC')
       .addOrderBy('approval.stepOrder', 'ASC')
       .addOrderBy('observation.createdAt', 'DESC');
@@ -144,7 +147,7 @@ export class EventsService {
   }
 
   async create(dto: CreateEventDto, user: AuthUser): Promise<EventResponse> {
-    this.validateEventDates(dto);
+    this.validateEventData(dto);
     return this.dataSource.transaction(async (manager) => {
       const faculty = await manager.getRepository(Faculty).findOne({
         where: { id: dto.facultyId },
@@ -158,13 +161,20 @@ export class EventsService {
       }
 
       const author = await this.personRepository.findByUserId(user.userId);
+      const { schedules, ...eventData } = dto;
       const event = manager.getRepository(Event).create({
-        ...this.pickEventFields(dto),
+        ...this.pickEventFields(eventData),
+        ...this.legacyScheduleFields(schedules),
         faculty,
         createdBy: { id: user.userId } as Event['createdBy'],
         workflowStatus: 'en_flujo',
       });
       const savedEvent = await manager.getRepository(Event).save(event);
+      await manager.getRepository(EventSchedule).save(
+        schedules.map((schedule) =>
+          manager.getRepository(EventSchedule).create({ ...schedule, event: savedEvent }),
+        ),
+      );
 
       const approvals: EventApproval[] = [];
       approvals.push(
@@ -204,11 +214,21 @@ export class EventsService {
         throw new ConflictException('No se puede editar un evento que ya completó las aprobaciones.');
       }
 
-      const { facultyId, approvals, ...fields } = dto;
+      const { facultyId, approvals, schedules, ...fields } = dto;
       for (const field of EVENT_FIELDS) {
         if (fields[field] !== undefined) {
           Object.assign(event, { [field]: fields[field] });
         }
+      }
+      if (schedules !== undefined) {
+        this.validateEventData({ schedules });
+        Object.assign(event, this.legacyScheduleFields(schedules));
+        await manager.getRepository(EventSchedule).delete({ event: { id: event.id } });
+        await manager.getRepository(EventSchedule).save(
+          schedules.map((schedule) =>
+            manager.getRepository(EventSchedule).create({ ...schedule, event }),
+          ),
+        );
       }
       if (facultyId !== undefined) {
         const faculty = await manager.getRepository(Faculty).findOne({
@@ -223,7 +243,11 @@ export class EventsService {
         }
         event.faculty = faculty;
       }
-      this.validateEventDates(event);
+      this.validateEventData({
+        schedules: schedules ?? this.getSchedules(event),
+        minimumCapacity: event.minimumCapacity,
+        maximumCapacity: event.maximumCapacity,
+      });
       await manager.getRepository(Event).save(event);
 
       if (approvals !== undefined) {
@@ -294,10 +318,14 @@ export class EventsService {
 
       event.workflowStatus = 'en_flujo';
       await manager.getRepository(Event).save(event);
-      await manager.getRepository(EventObservation).update(
-        { event: { id } as Event, resolvedAt: null },
-        { resolvedAt: new Date() },
-      );
+      await manager
+        .getRepository(EventObservation)
+        .createQueryBuilder()
+        .update()
+        .set({ resolvedAt: new Date() })
+        .where('"id_event" = :id', { id })
+        .andWhere('"resolved_at" IS NULL')
+        .execute();
       return this.toResponse(await this.loadEvent(manager, event.id));
     });
   }
@@ -381,6 +409,7 @@ export class EventsService {
         observations: {
           author: true,
         },
+        schedules: true,
       },
       order: {
         approvals: { stepOrder: 'ASC' },
@@ -440,20 +469,17 @@ export class EventsService {
     );
   }
 
-  private validateEventDates(dto: Partial<CreateEventDto>): void {
-    if (
-      dto.startDate &&
-      dto.endDate &&
-      dto.endDate < dto.startDate
-    ) {
-      throw new BadRequestException('La fecha de finalización no puede ser anterior a la fecha de inicio.');
-    }
-    if (
-      dto.startTime &&
-      dto.endTime &&
-      dto.endTime < dto.startTime
-    ) {
-      throw new BadRequestException('La hora de finalización no puede ser anterior a la hora de inicio.');
+  private validateEventData(dto: Partial<CreateEventDto>): void {
+    if (dto.schedules) {
+      const dates = dto.schedules.map((schedule) => schedule.date);
+      if (new Set(dates).size !== dates.length) {
+        throw new BadRequestException('No se puede registrar más de una sesión para la misma fecha.');
+      }
+      if (dto.schedules.some((schedule) => schedule.endTime <= schedule.startTime)) {
+        throw new BadRequestException(
+          'La hora de finalización debe ser posterior a la hora de inicio en cada sesión.',
+        );
+      }
     }
     if (
       dto.minimumCapacity !== undefined &&
@@ -464,7 +490,7 @@ export class EventsService {
     }
   }
 
-  private pickEventFields(dto: CreateEventDto): Partial<Event> {
+  private pickEventFields(dto: Omit<CreateEventDto, 'schedules'>): Partial<Event> {
     const fields: Partial<Event> = {};
     for (const field of EVENT_FIELDS) {
       Object.assign(fields, { [field]: dto[field] });
@@ -472,7 +498,64 @@ export class EventsService {
     return fields;
   }
 
+  private legacyScheduleFields(schedules: EventScheduleDto[]): Partial<Event> {
+    const ordered = [...schedules].sort((left, right) => left.date.localeCompare(right.date));
+    const first = ordered[0];
+    const last = ordered[ordered.length - 1];
+    return {
+      startDate: first.date,
+      endDate: last.date,
+      startTime: first.startTime,
+      endTime: first.endTime,
+      selectedDays: [...new Set(ordered.map((schedule) => this.weekDayLabel(schedule.date)))],
+    };
+  }
+
+  private getSchedules(event: Event): EventScheduleDto[] {
+    if (event.schedules?.length) {
+      return event.schedules.map(({ date, startTime, endTime }) => ({
+        date,
+        startTime: startTime.slice(0, 5),
+        endTime: endTime.slice(0, 5),
+      }));
+    }
+
+    const selectedDays = new Set(event.selectedDays ?? []);
+    const schedules: EventScheduleDto[] = [];
+    const start = new Date(`${event.startDate}T00:00:00Z`);
+    const end = new Date(`${event.endDate}T00:00:00Z`);
+    for (const current = new Date(start); current <= end; current.setUTCDate(current.getUTCDate() + 1)) {
+      const date = current.toISOString().slice(0, 10);
+      if (selectedDays.has(this.weekDayLabel(date))) {
+        schedules.push({
+          date,
+          startTime: event.startTime.slice(0, 5),
+          endTime: event.endTime.slice(0, 5),
+        });
+      }
+    }
+
+    return schedules.length
+      ? schedules
+      : [{
+          date: event.startDate,
+          startTime: event.startTime.slice(0, 5),
+          endTime: event.endTime.slice(0, 5),
+        }];
+  }
+
+  private weekDayLabel(date: string): string {
+    return ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][
+      new Date(`${date}T00:00:00Z`).getUTCDay()
+    ];
+  }
+
   private toResponse(event: Event): EventResponse {
+    const schedules = this.getSchedules(event).sort((left, right) =>
+      left.date.localeCompare(right.date),
+    );
+    const firstSchedule = schedules[0];
+    const lastSchedule = schedules[schedules.length - 1];
     const approvals = [...(event.approvals ?? [])]
       .sort((left, right) => left.stepOrder - right.stepOrder)
       .map((approval) => ({
@@ -503,12 +586,13 @@ export class EventsService {
       academicProgram: event.academicProgram,
       teacherProfile: event.teacherProfile,
       duration: event.duration,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      selectedDays: event.selectedDays,
+      startTime: firstSchedule.startTime,
+      endTime: firstSchedule.endTime,
+      selectedDays: [...new Set(schedules.map((schedule) => this.weekDayLabel(schedule.date)))],
       modality: event.modality,
-      startDate: event.startDate,
-      endDate: event.endDate,
+      startDate: firstSchedule.date,
+      endDate: lastSchedule.date,
+      schedules,
       minimumCapacity: event.minimumCapacity,
       maximumCapacity: event.maximumCapacity,
       participantProfile: event.participantProfile,

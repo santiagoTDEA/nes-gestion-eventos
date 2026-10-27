@@ -9,6 +9,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -28,6 +29,19 @@ export class EventApprovalDto {
 
   @IsDateString()
   date!: string;
+}
+
+export class EventScheduleDto {
+  @IsDateString()
+  date!: string;
+
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  startTime!: string;
+
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  endTime!: string;
 }
 
 export class CreateEventDto {
@@ -67,27 +81,14 @@ export class CreateEventDto {
 
   @IsString()
   @IsNotEmpty()
-  startTime!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  endTime!: string;
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @IsString({ each: true })
-  selectedDays!: string[];
-
-  @IsString()
-  @IsNotEmpty()
   @MaxLength(30)
   modality!: string;
 
-  @IsDateString()
-  startDate!: string;
-
-  @IsDateString()
-  endDate!: string;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => EventScheduleDto)
+  schedules!: EventScheduleDto[];
 
   @Type(() => Number)
   @IsInt()
