@@ -14,6 +14,12 @@ import { EventApproval } from './event-approval.entity';
 import { EventObservation } from './event-observation.entity';
 import { WorkflowStatus } from '../constants/approval-flow';
 
+export interface EventSchedule {
+  day: string;
+  startTime: string;
+  endTime: string;
+}
+
 @Entity('event_forms')
 export class Event {
   @ApiProperty({
@@ -104,6 +110,18 @@ export class Event {
   })
   @Column({ name: 'selected_days', type: 'simple-array' })
   selectedDays!: string[];
+
+  @ApiProperty({
+    description:
+      'Horario propio de cada día (opcional; los eventos antiguos solo tienen startTime/endTime)',
+    required: false,
+    example: [
+      { day: 'Lun', startTime: '08:00', endTime: '12:00' },
+      { day: 'Mié', startTime: '14:00', endTime: '18:00' },
+    ],
+  })
+  @Column({ name: 'schedules', type: 'jsonb', nullable: true })
+  schedules!: EventSchedule[] | null;
 
   @ApiProperty({
     description: 'Modalidad del evento',

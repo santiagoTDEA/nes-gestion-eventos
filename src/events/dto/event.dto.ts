@@ -69,6 +69,30 @@ export class CreateEventApprovalDto {
   signature?: string;
 }
 
+export class EventScheduleDto {
+  @ApiProperty({
+    description: 'Día de la semana en el que se dicta el evento',
+    example: 'Lun',
+    enum: EVENT_WEEK_DAYS,
+  })
+  @IsIn(EVENT_WEEK_DAYS)
+  day!: string;
+
+  @ApiProperty({
+    description: 'Hora de inicio de ese día (HH:mm)',
+    example: '08:00',
+  })
+  @Matches(TIME_PATTERN, { message: 'startTime debe tener formato HH:mm' })
+  startTime!: string;
+
+  @ApiProperty({
+    description: 'Hora de finalización de ese día (HH:mm)',
+    example: '12:00',
+  })
+  @Matches(TIME_PATTERN, { message: 'endTime debe tener formato HH:mm' })
+  endTime!: string;
+}
+
 export class CreateEventDto {
   @ApiProperty({
     description: 'Tipo de evento',
@@ -160,6 +184,18 @@ export class CreateEventDto {
   @ArrayMinSize(1)
   @IsIn(EVENT_WEEK_DAYS, { each: true })
   selectedDays!: string[];
+
+  @ApiProperty({
+    description:
+      'Horario propio de cada día seleccionado. Opcional: si no llega se usa startTime/endTime para todos los días',
+    type: () => [EventScheduleDto],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventScheduleDto)
+  schedules?: EventScheduleDto[];
 
   @ApiProperty({
     description: 'Modalidad del evento',

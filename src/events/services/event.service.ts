@@ -7,6 +7,7 @@ import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
 import {
   CreateEventDto,
+  EventScheduleDto,
   ReturnEventDto,
   UpdateEventDto,
 } from '../dto/event.dto';
@@ -119,6 +120,7 @@ export class EventService {
       event.startTime = createEventDto.startTime;
       event.endTime = createEventDto.endTime;
       event.selectedDays = createEventDto.selectedDays;
+      event.schedules = this.normalizeSchedules(createEventDto.schedules);
       event.modality = createEventDto.modality;
       event.startDate = createEventDto.startDate;
       event.endDate = createEventDto.endDate;
@@ -158,12 +160,22 @@ export class EventService {
     endDate: string;
     minimumCapacity: number;
     maximumCapacity: number;
+    schedules?: EventScheduleDto[] | null;
   }): void {
     if (data.endTime < data.startTime) {
       throw new ErrorManager({
         type: 'BAD_REQUEST',
         message: 'La hora de finalización no puede ser anterior a la de inicio',
       });
+    }
+
+    for (const schedule of data.schedules ?? []) {
+      if (schedule.endTime < schedule.startTime) {
+        throw new ErrorManager({
+          type: 'BAD_REQUEST',
+          message: `La hora de finalización del día ${schedule.day} no puede ser anterior a la de inicio`,
+        });
+      }
     }
 
     if (data.endDate < data.startDate) {
@@ -180,6 +192,24 @@ export class EventService {
         message: 'El cupo máximo no puede ser menor al cupo mínimo',
       });
     }
+  }
+
+  /**
+   * Normaliza los horarios por día a HH:mm. Devuelve null cuando no llegan, para
+   * que los eventos antiguos (sin schedules) sigan funcionando igual.
+   */
+  private normalizeSchedules(
+    schedules?: EventScheduleDto[] | null,
+  ): EventScheduleDto[] | null {
+    if (!schedules) {
+      return null;
+    }
+
+    return schedules.map((schedule) => ({
+      day: schedule.day,
+      startTime: schedule.startTime.slice(0, 5),
+      endTime: schedule.endTime.slice(0, 5),
+    }));
   }
 
   /**
@@ -487,6 +517,11 @@ export class EventService {
 
       const normalizeTime = (value: string) => value.slice(0, 5);
 
+      if (fields.schedules !== undefined) {
+        fields.schedules =
+          this.normalizeSchedules(fields.schedules) ?? undefined;
+      }
+
       this.validateBusinessRules({
         startTime: normalizeTime(fields.startTime ?? event.startTime),
         endTime: normalizeTime(fields.endTime ?? event.endTime),
@@ -494,6 +529,7 @@ export class EventService {
         endDate: fields.endDate ?? event.endDate,
         minimumCapacity: fields.minimumCapacity ?? event.minimumCapacity,
         maximumCapacity: fields.maximumCapacity ?? event.maximumCapacity,
+        schedules: fields.schedules ?? event.schedules,
       });
 
       if (fields.name !== undefined) {
