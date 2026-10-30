@@ -11,4 +11,5 @@ export enum Module {
   ESTADOS = 'estados',
   EVENTOS = 'eventos',
   APROBACIONES = 'aprobaciones',
+  CERTIFICACION = 'certificacion',
 }

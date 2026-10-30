@@ -10,6 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Faculty } from '../../faculty/entities/faculty.entity';
 import { PersonRepository } from '../../person/repository/person.repository';
 import { RoleRepository } from '../../roles/repositories/role.repository';
+import { Action } from '../../auth/constants/action.enum';
+import { Module } from '../../auth/constants/module.enum';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
 import {
   CreateEventDto,
@@ -130,7 +132,10 @@ export class EventsService {
       .addOrderBy('approval.stepOrder', 'ASC')
       .addOrderBy('observation.createdAt', 'DESC');
 
-    if (!this.hasGlobalEventAccess(user)) {
+    if (
+      !this.hasGlobalEventAccess(user) &&
+      !this.hasCertificationAccess(user)
+    ) {
       query
         .where('creator.id = :userId', { userId: user.userId })
         .orWhere('approvalUser.id = :userId', { userId: user.userId });
@@ -467,6 +472,14 @@ export class EventsService {
       roleName === 'administrador' ||
       (user.role?.permissionsFull === true && user.role?.modulesFull === true)
     );
+  }
+
+  private hasCertificationAccess(user: AuthUser): boolean {
+    return user.role?.accesos?.some(
+      (access) =>
+        (access.module ?? access.modulo) === Module.CERTIFICACION &&
+        access.acciones?.some((action) => action === Action.VER || action === 'leer'),
+    ) ?? false;
   }
 
   private validateEventData(dto: Partial<CreateEventDto>): void {

@@ -30,6 +30,7 @@ export class EventsController {
   @RequireAnyPermission(
     { module: Module.EVENTOS, action: Action.VER },
     { module: Module.APROBACIONES, action: Action.VER },
+    { module: Module.CERTIFICACION, action: Action.VER },
   )
   findAll(@Req() request: AuthenticatedRequest): Promise<EventResponse[]> {
     return this.eventsService.findAll(request.user);
