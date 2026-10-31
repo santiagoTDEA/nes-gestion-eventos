@@ -14,6 +14,9 @@ import {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get<ConfigService<Env, true>>(ConfigService);
+  // En Render las peticiones pasan por un proxy: así req.ip es la IP real del
+  // usuario y el límite por IP de la recuperación de cuenta no los junta a todos.
+  app.set('trust proxy', 1);
   app.enableCors({
     origin: true,
     credentials: true,

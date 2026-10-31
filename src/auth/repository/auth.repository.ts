@@ -29,6 +29,18 @@ export class UserRepository {
     });
   }
 
+  /** Usuario con su persona y el rol de la persona, para armar el perfil. */
+  async findWithRoleById(id: string): Promise<User | null> {
+    return await this.repository.findOne({
+      where: { id },
+      relations: {
+        person: {
+          role: true,
+        },
+      },
+    });
+  }
+
   async findAll(): Promise<User[]> {
     return await this.repository.find({
       relations: {

@@ -1,13 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PersonRepository } from '../../person/repository/person.repository';
 
 import { User } from '../entities/auth.entity';
 import { StatusRepository } from '../../state/repositories/state.repository';
 import { ErrorManager } from '../../utils/error.manager';
 import { UserRepository } from '../repository/auth.repository';
-import { CreateUserDto, UpdateUserDto } from '../dto/auth.dto';
+import {
+  ChangeOwnPasswordDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from '../dto/auth.dto';
+import {
+  passwordMatches,
+  passwordPolicyErrors,
+} from '../utils/password-policy.util';
 import { JwtService } from '@nestjs/jwt';
 import { SignatureService } from './signature.service';
+import { UserProfile } from '../interfaces/user-profile.interface';
 @Injectable()
 export class UserService {
   constructor(
@@ -49,6 +62,82 @@ export class UserService {
 
       throw error;
     }
+  }
+
+  /** Perfil del usuario autenticado: nombre, correo y rol de su persona. */
+  async getProfile(userId: string): Promise<UserProfile> {
+    try {
+      const user = await this.userRepository.findWithRoleById(userId);
+
+      if (!user) {
+        throw new ErrorManager({
+          type: 'NOT_FOUND',
+          message: `No se encontró el usuario.`,
+        });
+      }
+
+      const { person } = user;
+
+      return {
+        id: user.id,
+        username: user.username,
+        name: person?.name ?? null,
+        email: person?.email ?? null,
+        role: person?.role
+          ? { id: person.role.id, name: person.role.name }
+          : null,
+      };
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * El usuario autenticado cambia su propia contraseña. El id sale del token,
+   * así que nadie puede cambiar la de otro, y se exige la contraseña actual.
+   * Responde 400 (no 401) si la actual no coincide: el front cierra sesión con 401.
+   */
+  async changeOwnPassword(
+    userId: string,
+    dto: ChangeOwnPasswordDto,
+  ): Promise<{ message: string }> {
+    const { currentPassword, newPassword, confirmPassword } = dto;
+
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException(
+        'La confirmación no coincide con la contraseña nueva.',
+      );
+    }
+
+    const policyErrors = passwordPolicyErrors(newPassword);
+    if (policyErrors.length > 0) {
+      throw new BadRequestException(
+        `La contraseña nueva ${policyErrors.join(', ')}.`,
+      );
+    }
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('No se encontró el usuario.');
+    }
+
+    if (!passwordMatches(user.password, currentPassword)) {
+      throw new BadRequestException('La contraseña actual no es correcta.');
+    }
+
+    if (passwordMatches(user.password, newPassword)) {
+      throw new BadRequestException(
+        'La contraseña nueva debe ser distinta de la actual.',
+      );
+    }
+
+    await this.userRepository.update(userId, { password: newPassword });
+
+    return { message: 'La contraseña se actualizó correctamente.' };
   }
 
   async validateCredentials(

@@ -20,6 +20,7 @@ import {
 import { UserService } from '../services/auth.service';
 import { User } from '../entities/auth.entity';
 import {
+  ChangeOwnPasswordDto,
   CreateUserDto,
   UpdateUserDto,
   ValidarCredencialesDto,
@@ -28,6 +29,9 @@ import { Action } from '../constants/action.enum';
 import { Module } from '../constants/module.enum';
 import { RequirePermission } from '../decorators/permission/permission.decorator';
 import { Public } from '../decorators/public/public.decorator';
+import { CurrentUser } from '../decorators/current-user/current-user.decorator';
+import type { AuthUser } from '../interfaces/jwt-payload.interface';
+import type { UserProfile } from '../interfaces/user-profile.interface';
 
 @ApiTags('Autenticación')
 @Controller('auth')
@@ -50,6 +54,42 @@ export class UserController {
     const { username, password } = validarCredenciales;
     return this.authService.validateCredentials(username, password);
   }
+
+  @ApiBearerAuth('access-token')
+  @Get('me')
+  @ApiOperation({
+    summary: 'Obtener el perfil del usuario autenticado (nombre y rol)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Perfil obtenido correctamente',
+    type: Object,
+  })
+  @RequirePermission(Module.USUARIOS, Action.VER, { isCatalog: true })
+  async me(@CurrentUser() user: AuthUser): Promise<UserProfile> {
+    return this.authService.getProfile(user.userId);
+  }
+
+  @ApiBearerAuth('access-token')
+  @Patch('me/password')
+  @ApiOperation({
+    summary:
+      'Cambiar la contraseña del usuario autenticado (pide la contraseña actual)',
+  })
+  @ApiResponse({ status: 200, description: 'Contraseña actualizada' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Contraseña actual incorrecta, confirmación distinta o contraseña nueva débil',
+  })
+  @RequirePermission(Module.USUARIOS, Action.EDITAR, { ownAccount: true })
+  async changeOwnPassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangeOwnPasswordDto,
+  ): Promise<{ message: string }> {
+    return this.authService.changeOwnPassword(user.userId, dto);
+  }
+
   @ApiBearerAuth('access-token')
   @Get('users')
   @ApiOperation({

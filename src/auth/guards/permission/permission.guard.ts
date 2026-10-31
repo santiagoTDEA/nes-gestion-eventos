@@ -45,6 +45,11 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('No se encontró el usuario autenticado.');
     }
 
+    // Acciones sobre la propia cuenta (p. ej. cambiar la contraseña): no dependen del rol.
+    if (permission.ownAccount) {
+      return true;
+    }
+
     const role = user.role;
 
     if (!role) {
@@ -53,6 +58,13 @@ export class PermissionGuard implements CanActivate {
 
     if (hasGlobalAccess(role)) {
       return true;
+    }
+
+    // Módulos reservados a roles con permisos y módulos completos.
+    if (permission.globalOnly) {
+      throw new ForbiddenException(
+        `El módulo "${permission.module}" solo está disponible para roles con permisos y módulos completos.`,
+      );
     }
 
     if (permission.action === Action.VER && permission.isCatalog) {

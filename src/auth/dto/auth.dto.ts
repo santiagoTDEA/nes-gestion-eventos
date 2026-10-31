@@ -125,3 +125,30 @@ export class ValidarCredencialesDto {
   @IsNotEmpty()
   password!: string;
 }
+
+/** Cambio de contraseña del propio usuario (pantalla "Mi perfil"). */
+export class ChangeOwnPasswordDto {
+  @ApiProperty({ description: 'Contraseña actual', example: 'MiPassword123' })
+  @IsString()
+  @IsNotEmpty({ message: 'Escribe tu contraseña actual.' })
+  @MaxLength(255)
+  currentPassword!: string;
+
+  @ApiProperty({
+    description: 'Contraseña nueva: mínimo 8 caracteres, con letras y números',
+    example: 'NuevaClave2026',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Escribe la contraseña nueva.' })
+  @MaxLength(255)
+  newPassword!: string;
+
+  @ApiProperty({
+    description: 'Contraseña nueva repetida',
+    example: 'NuevaClave2026',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Confirma la contraseña nueva.' })
+  @MaxLength(255)
+  confirmPassword!: string;
+}
