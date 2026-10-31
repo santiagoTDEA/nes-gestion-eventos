@@ -21,16 +21,6 @@ import {
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 
-export const EVENT_WEEK_DAYS = [
-  'Lun',
-  'Mar',
-  'Mié',
-  'Jue',
-  'Vie',
-  'Sáb',
-  'Dom',
-] as const;
-
 export const EVENT_MODALITIES = ['Presencial', 'Virtual', 'Mixta'] as const;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
@@ -71,12 +61,15 @@ export class CreateEventApprovalDto {
 
 export class EventScheduleDto {
   @ApiProperty({
-    description: 'Día de la semana en el que se dicta el evento',
-    example: 'Lun',
-    enum: EVENT_WEEK_DAYS,
+    description: 'Día de la semana: 1 = Lunes ... 7 = Domingo',
+    example: 1,
+    minimum: 1,
+    maximum: 7,
   })
-  @IsIn(EVENT_WEEK_DAYS)
-  day!: string;
+  @IsInt()
+  @Min(1)
+  @Max(7)
+  dayOfWeek!: number;
 
   @ApiProperty({
     description: 'Hora de inicio de ese día (HH:mm)',
@@ -161,41 +154,16 @@ export class CreateEventDto {
   duration!: number;
 
   @ApiProperty({
-    description: 'Hora de inicio (HH:mm)',
-    example: '08:00',
-  })
-  @Matches(TIME_PATTERN, { message: 'startTime debe tener formato HH:mm' })
-  startTime!: string;
-
-  @ApiProperty({
-    description: 'Hora de finalización (HH:mm)',
-    example: '12:00',
-  })
-  @Matches(TIME_PATTERN, { message: 'endTime debe tener formato HH:mm' })
-  endTime!: string;
-
-  @ApiProperty({
-    description: 'Días de la semana en los que se dicta el evento',
-    example: ['Lun', 'Mié'],
-    enum: EVENT_WEEK_DAYS,
-    isArray: true,
+    description:
+      'Horario de cada día en el que se dicta el evento (mínimo 1, sin días repetidos)',
+    type: () => [EventScheduleDto],
   })
   @IsArray()
   @ArrayMinSize(1)
-  @IsIn(EVENT_WEEK_DAYS, { each: true })
-  selectedDays!: string[];
-
-  @ApiProperty({
-    description:
-      'Horario propio de cada día seleccionado. Opcional: si no llega se usa startTime/endTime para todos los días',
-    type: () => [EventScheduleDto],
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
+  @ArrayMaxSize(7)
   @ValidateNested({ each: true })
   @Type(() => EventScheduleDto)
-  schedules?: EventScheduleDto[];
+  schedules!: EventScheduleDto[];
 
   @ApiProperty({
     description: 'Modalidad del evento',

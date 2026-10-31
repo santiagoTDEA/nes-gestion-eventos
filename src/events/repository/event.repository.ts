@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 
 import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
+import { EventSchedule } from '../entities/event-schedule.entity';
 import { EventObservation } from '../entities/event-observation.entity';
 import { WorkflowStatus } from '../constants/approval-flow';
 
@@ -31,13 +32,14 @@ export class EventRepository {
       where: visibleIds ? { id: In(visibleIds) } : undefined,
       relations: {
         faculty: true,
+        schedules: true,
         observations: { author: true },
         approvals: {
           person: true,
           role: true,
         },
       },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', schedules: { dayOfWeek: 'ASC' } },
     });
   }
 
@@ -69,19 +71,29 @@ export class EventRepository {
       where: { id },
       relations: {
         faculty: true,
+        schedules: true,
         observations: { author: true },
         approvals: {
           person: true,
           role: true,
         },
       },
+      order: { schedules: { dayOfWeek: 'ASC' } },
     });
   }
 
-  async update(event: Event, replaceApprovals: boolean): Promise<Event> {
+  async update(
+    event: Event,
+    replaceApprovals: boolean,
+    replaceSchedules = false,
+  ): Promise<Event> {
     await this.repository.manager.transaction(async (manager) => {
       if (replaceApprovals) {
         await manager.delete(EventApproval, { event: { id: event.id } });
+      }
+
+      if (replaceSchedules) {
+        await manager.delete(EventSchedule, { event: { id: event.id } });
       }
 
       await manager.save(Event, event);

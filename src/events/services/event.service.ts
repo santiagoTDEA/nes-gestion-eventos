@@ -5,6 +5,7 @@ import { PersonRepository } from '../../person/repository/person.repository';
 import { RoleRepository } from '../../roles/repositories/role.repository';
 import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
+import { EventSchedule } from '../entities/event-schedule.entity';
 import {
   CreateEventDto,
   EventScheduleDto,
@@ -117,10 +118,7 @@ export class EventService {
       event.academicProgram = createEventDto.academicProgram;
       event.teacherProfile = createEventDto.teacherProfile;
       event.duration = createEventDto.duration;
-      event.startTime = createEventDto.startTime;
-      event.endTime = createEventDto.endTime;
-      event.selectedDays = createEventDto.selectedDays;
-      event.schedules = this.normalizeSchedules(createEventDto.schedules);
+      event.schedules = this.buildSchedules(createEventDto.schedules);
       event.modality = createEventDto.modality;
       event.startDate = createEventDto.startDate;
       event.endDate = createEventDto.endDate;
@@ -154,26 +152,27 @@ export class EventService {
   }
 
   private validateBusinessRules(data: {
-    startTime: string;
-    endTime: string;
     startDate: string;
     endDate: string;
     minimumCapacity: number;
     maximumCapacity: number;
-    schedules?: EventScheduleDto[] | null;
+    schedules: EventScheduleDto[];
   }): void {
-    if (data.endTime < data.startTime) {
-      throw new ErrorManager({
-        type: 'BAD_REQUEST',
-        message: 'La hora de finalización no puede ser anterior a la de inicio',
-      });
-    }
+    const days = new Set<number>();
 
-    for (const schedule of data.schedules ?? []) {
-      if (schedule.endTime < schedule.startTime) {
+    for (const schedule of data.schedules) {
+      if (days.has(schedule.dayOfWeek)) {
         throw new ErrorManager({
           type: 'BAD_REQUEST',
-          message: `La hora de finalización del día ${schedule.day} no puede ser anterior a la de inicio`,
+          message: `El día ${schedule.dayOfWeek} está repetido en los horarios`,
+        });
+      }
+      days.add(schedule.dayOfWeek);
+
+      if (schedule.endTime.slice(0, 5) <= schedule.startTime.slice(0, 5)) {
+        throw new ErrorManager({
+          type: 'BAD_REQUEST',
+          message: `La hora de finalización del día ${schedule.dayOfWeek} debe ser posterior a la de inicio`,
         });
       }
     }
@@ -194,22 +193,15 @@ export class EventService {
     }
   }
 
-  /**
-   * Normaliza los horarios por día a HH:mm. Devuelve null cuando no llegan, para
-   * que los eventos antiguos (sin schedules) sigan funcionando igual.
-   */
-  private normalizeSchedules(
-    schedules?: EventScheduleDto[] | null,
-  ): EventScheduleDto[] | null {
-    if (!schedules) {
-      return null;
-    }
-
-    return schedules.map((schedule) => ({
-      day: schedule.day,
-      startTime: schedule.startTime.slice(0, 5),
-      endTime: schedule.endTime.slice(0, 5),
-    }));
+  /** Convierte los horarios del DTO en filas de event_schedules (horas en HH:mm). */
+  private buildSchedules(schedules: EventScheduleDto[]): EventSchedule[] {
+    return schedules.map((schedule) =>
+      Object.assign(new EventSchedule(), {
+        dayOfWeek: schedule.dayOfWeek,
+        startTime: schedule.startTime.slice(0, 5),
+        endTime: schedule.endTime.slice(0, 5),
+      }),
+    );
   }
 
   /**
@@ -513,23 +505,14 @@ export class EventService {
         });
       }
 
-      const { facultyId, approvals, ...fields } = updateEventDto;
-
-      const normalizeTime = (value: string) => value.slice(0, 5);
-
-      if (fields.schedules !== undefined) {
-        fields.schedules =
-          this.normalizeSchedules(fields.schedules) ?? undefined;
-      }
+      const { facultyId, approvals, schedules, ...fields } = updateEventDto;
 
       this.validateBusinessRules({
-        startTime: normalizeTime(fields.startTime ?? event.startTime),
-        endTime: normalizeTime(fields.endTime ?? event.endTime),
         startDate: fields.startDate ?? event.startDate,
         endDate: fields.endDate ?? event.endDate,
         minimumCapacity: fields.minimumCapacity ?? event.minimumCapacity,
         maximumCapacity: fields.maximumCapacity ?? event.maximumCapacity,
-        schedules: fields.schedules ?? event.schedules,
+        schedules: schedules ?? event.schedules,
       });
 
       if (fields.name !== undefined) {
@@ -584,11 +567,19 @@ export class EventService {
 
       Object.assign(event, fields);
 
+      if (schedules !== undefined) {
+        event.schedules = this.buildSchedules(schedules);
+      }
+
       if (fields.eventType !== undefined && fields.eventType !== '¿Otro?') {
         event.otherEventType = null;
       }
 
-      return this.eventRepository.update(event, approvals !== undefined);
+      return this.eventRepository.update(
+        event,
+        approvals !== undefined,
+        schedules !== undefined,
+      );
     } catch (error) {
       if (error instanceof ErrorManager) {
         ErrorManager.createAsignatureError(error.message);

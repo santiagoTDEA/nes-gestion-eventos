@@ -12,13 +12,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Faculty } from '../../faculty/entities/faculty.entity';
 import { EventApproval } from './event-approval.entity';
 import { EventObservation } from './event-observation.entity';
+import { EventSchedule } from './event-schedule.entity';
 import { WorkflowStatus } from '../constants/approval-flow';
-
-export interface EventSchedule {
-  day: string;
-  startTime: string;
-  endTime: string;
-}
 
 @Entity('event_forms')
 export class Event {
@@ -89,39 +84,27 @@ export class Event {
   @Column({ name: 'duration', type: 'int' })
   duration!: number;
 
-  @ApiProperty({
-    description: 'Hora de inicio',
-    example: '08:00',
-  })
-  @Column({ name: 'start_time', type: 'time' })
-  startTime!: string;
+  /** @deprecated Reemplazado por `schedules` (tabla event_schedules). Solo queda en eventos antiguos. */
+  @Column({ name: 'start_time', type: 'time', nullable: true })
+  startTime?: string | null;
 
-  @ApiProperty({
-    description: 'Hora de finalización',
-    example: '12:00',
-  })
-  @Column({ name: 'end_time', type: 'time' })
-  endTime!: string;
+  /** @deprecated Reemplazado por `schedules` (tabla event_schedules). Solo queda en eventos antiguos. */
+  @Column({ name: 'end_time', type: 'time', nullable: true })
+  endTime?: string | null;
 
-  @ApiProperty({
-    description: 'Días de la semana en los que se dicta el evento',
-    example: ['Lun', 'Mié'],
-    type: [String],
-  })
-  @Column({ name: 'selected_days', type: 'simple-array' })
-  selectedDays!: string[];
+  /** @deprecated Reemplazado por `schedules` (tabla event_schedules). Solo queda en eventos antiguos. */
+  @Column({ name: 'selected_days', type: 'simple-array', nullable: true })
+  selectedDays?: string[] | null;
 
   @ApiProperty({
     description:
-      'Horario propio de cada día (opcional; los eventos antiguos solo tienen startTime/endTime)',
-    required: false,
-    example: [
-      { day: 'Lun', startTime: '08:00', endTime: '12:00' },
-      { day: 'Mié', startTime: '14:00', endTime: '18:00' },
-    ],
+      'Horario de cada día en el que se dicta el evento (dayOfWeek: 1 = Lunes ... 7 = Domingo)',
+    type: () => [EventSchedule],
   })
-  @Column({ name: 'schedules', type: 'jsonb', nullable: true })
-  schedules!: EventSchedule[] | null;
+  @OneToMany(() => EventSchedule, (schedule) => schedule.event, {
+    cascade: true,
+  })
+  schedules!: EventSchedule[];
 
   @ApiProperty({
     description: 'Modalidad del evento',

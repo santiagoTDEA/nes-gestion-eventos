@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Event } from './entities/event.entity';
 import { EventApproval } from './entities/event-approval.entity';
 import { EventObservation } from './entities/event-observation.entity';
+import { EventSchedule } from './entities/event-schedule.entity';
 import { EventRepository } from './repository/event.repository';
 import { EventService } from './services/event.service';
 import { EventNotifier } from './services/event-notifier.service';
@@ -18,7 +19,12 @@ import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Event, EventApproval, EventObservation]),
+    TypeOrmModule.forFeature([
+      Event,
+      EventApproval,
+      EventObservation,
+      EventSchedule,
+    ]),
     FacultyModule,
     PersonModule,
     RoleModule,

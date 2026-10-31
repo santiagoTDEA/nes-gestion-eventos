@@ -150,8 +150,11 @@ export class DiffusionService {
               modality: event.modality,
               startDate: event.startDate,
               endDate: event.endDate,
-              startTime: event.startTime,
-              endTime: event.endTime,
+              schedules: (event.schedules ?? []).map((schedule) => ({
+                dayOfWeek: schedule.dayOfWeek,
+                startTime: schedule.startTime.slice(0, 5),
+                endTime: schedule.endTime.slice(0, 5),
+              })),
               participantProfile: event.participantProfile,
               presentation: event.presentation,
             },
