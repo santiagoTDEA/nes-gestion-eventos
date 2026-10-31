@@ -1,4 +1,4 @@
-import { describe, beforeEach, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import {
   BadRequestException,
   ConflictException,
@@ -77,18 +77,25 @@ function setup(
 ) {
   const saved: Partial<EventRegistration>[] = [...stored];
 
+  // Las firmas van en el genérico de jest.fn para poder usar toHaveBeenCalledWith.
   const manager = {
-    findOne: jest.fn(async (..._args: unknown[]) => event),
-    find: jest.fn(async (entity: unknown) =>
-      entity === EventApproval ? (event?.approvals ?? []) : saved,
+    findOne: jest.fn<(...args: unknown[]) => Promise<Event | null>>(() =>
+      Promise.resolve(event),
     ),
-    count: jest.fn(async () => saved.length),
+    find: jest.fn((entity: unknown) =>
+      Promise.resolve(
+        entity === EventApproval ? (event?.approvals ?? []) : saved,
+      ),
+    ),
+    count: jest.fn(() => Promise.resolve(saved.length)),
     exists: jest.fn(
-      async (_: unknown, { where }: { where: { documentNumber: string } }) =>
-        saved.some((item) => item.documentNumber === where.documentNumber),
+      (_: unknown, { where }: { where: { documentNumber: string } }) =>
+        Promise.resolve(
+          saved.some((item) => item.documentNumber === where.documentNumber),
+        ),
     ),
     create: jest.fn((_: unknown, data: object) => ({ ...data })),
-    save: jest.fn(async (data: object | object[]) => {
+    save: jest.fn((data: object | object[]) => {
       const items = Array.isArray(data) ? data : [data];
       items.forEach((item, i) =>
         saved.push({
@@ -97,24 +104,31 @@ function setup(
           ...item,
         }),
       );
-      return Array.isArray(data) ? data : saved[saved.length - 1];
+      return Promise.resolve(
+        Array.isArray(data) ? data : saved[saved.length - 1],
+      );
     }),
   };
 
   const dataSource = {
-    transaction: jest.fn(async (work: (m: typeof manager) => unknown) =>
-      work(manager),
+    transaction: jest.fn((work: (m: typeof manager) => unknown) =>
+      Promise.resolve(work(manager)),
     ),
   };
   const registrations = {
-    find: jest.fn(async () => saved),
-    delete: jest.fn(async (_id: number) => ({ affected: 1 })),
+    find: jest.fn(() => Promise.resolve(saved)),
+    delete: jest.fn<(id: number) => Promise<{ affected: number }>>(() =>
+      Promise.resolve({ affected: 1 }),
+    ),
     createQueryBuilder: jest.fn(),
   };
-  const events = { find: jest.fn(), findOne: jest.fn(async () => event) };
+  const events = {
+    find: jest.fn(),
+    findOne: jest.fn(() => Promise.resolve(event)),
+  };
   const excel = {
     readRows: jest.fn<(b: Buffer) => Promise<ExcelRow[]>>(),
-    buildFailedFile: jest.fn(async () => Buffer.from('errores')),
+    buildFailedFile: jest.fn(() => Promise.resolve(Buffer.from('errores'))),
     buildTemplate: jest.fn(),
   };
 
@@ -149,7 +163,8 @@ describe('RegistrationService', () => {
           select: () => ({
             addSelect: () => ({
               groupBy: () => ({
-                getRawMany: async () => [{ eventId: 10, total: '25' }],
+                getRawMany: () =>
+                  Promise.resolve([{ eventId: 10, total: '25' }]),
               }),
             }),
           }),

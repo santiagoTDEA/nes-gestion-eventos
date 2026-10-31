@@ -24,12 +24,20 @@ const HANDLERS = [
   'remove',
 ] as const;
 
+/** El método del controlador, solo para leer sus metadatos (nunca se invoca). */
+function handlerOf(handler: (typeof HANDLERS)[number]): object {
+  return Object.getOwnPropertyDescriptor(
+    RegistrationController.prototype,
+    handler,
+  )?.value as object;
+}
+
 function contextFor(
   handler: (typeof HANDLERS)[number],
   role: object,
 ): ExecutionContext {
   return {
-    getHandler: () => RegistrationController.prototype[handler],
+    getHandler: () => handlerOf(handler),
     getClass: () => RegistrationController,
     switchToHttp: () => ({ getRequest: () => ({ user: { role } }) }),
   } as unknown as ExecutionContext;
@@ -43,7 +51,7 @@ describe('RegistrationController (permisos)', () => {
     (handler) => {
       const metadata = Reflect.getMetadata(
         PERMISSION_KEY,
-        RegistrationController.prototype[handler],
+        handlerOf(handler),
       ) as PermissionMetadata;
 
       expect(metadata).toMatchObject({
