@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { extname, join } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 
 /** Contrato de almacenamiento: hoy es disco local; luego puede ser Cloudinary o S3 sin tocar el resto. */
 export abstract class FileStorage {
@@ -13,8 +13,14 @@ export abstract class FileStorage {
   abstract remove(path: string): Promise<void>;
 }
 
-/** Carpeta pública del servidor; se sirve en /gestion-eventos/files. */
-export const PUBLIC_ROOT = join(process.cwd(), 'public');
+/**
+ * Carpeta pública del servidor; se sirve en /gestion-eventos/files.
+ * UPLOAD_DIR (variable de entorno del sistema, p. ej. en Render) permite moverla,
+ * por ejemplo a /tmp/uploads o a un disco persistente; sin ella se usa ./public.
+ */
+export const PUBLIC_ROOT = resolve(
+  process.env.UPLOAD_DIR || join(process.cwd(), 'public'),
+);
 export const FILES_URL_PREFIX = '/gestion-eventos/files/';
 
 const SAFE_EXTENSION = /^\.[a-z0-9]{1,8}$/;
@@ -39,8 +45,8 @@ export class LocalFileStorage extends FileStorage {
   async remove(path: string): Promise<void> {
     const target = join(PUBLIC_ROOT, path);
 
-    // Nunca borrar fuera de la carpeta pública.
-    if (!target.startsWith(PUBLIC_ROOT)) {
+    // Nunca borrar fuera de la carpeta pública (el separador evita "/app/public-otra").
+    if (!target.startsWith(PUBLIC_ROOT + sep)) {
       return;
     }
 

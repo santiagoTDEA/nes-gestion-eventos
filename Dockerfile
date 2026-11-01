@@ -19,6 +19,10 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 
+# Carpeta de las piezas de difusión: el proceso corre como "node" y /app es de root,
+# así que se crea aquí y se le entrega a "node" para que pueda escribir en ella.
+RUN mkdir -p /app/public/uploads && chown -R node:node /app/public
+
 EXPOSE 3000
 
 USER node
