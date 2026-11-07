@@ -69,7 +69,7 @@ function makeEvent(maximumCapacity: number, approvals = approved): Event {
   } as unknown as Event;
 }
 
-/** Simula la base de datos: un evento, sus aprobaciones y las inscripciones guardadas. */
+/** Simula la base de datos: un evento, sus aprobaciones y sus asistentes. */
 function setup(
   event: Event | null,
   stored: Partial<EventRegistration>[] = [],
@@ -143,7 +143,7 @@ function setup(
 }
 
 const xlsx = {
-  originalname: 'inscritos.xlsx',
+  originalname: 'asistentes.xlsx',
   mimetype: '',
   size: 10,
   buffer: Buffer.from(''),
@@ -183,14 +183,14 @@ describe('RegistrationService', () => {
   });
 
   describe('findByEvent', () => {
-    it('no muestra inscritos de eventos sin aprobación completa', async () => {
+    it('no muestra asistentes de eventos sin aprobación completa', async () => {
       const { service } = setup(makeEvent(10, pending));
       await expect(service.findByEvent(10)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
 
-    it('numera a los inscritos en el orden en que se inscribieron', async () => {
+    it('numera a los asistentes en el orden de registro', async () => {
       const { service } = setup(makeEvent(10), [
         { id: 1, ...person('11111') },
         { id: 2, ...person('22222') },
@@ -203,7 +203,7 @@ describe('RegistrationService', () => {
   });
 
   describe('register (formulario)', () => {
-    it('inscribe a la persona con los datos normalizados', async () => {
+    it('registra la asistencia con los datos normalizados', async () => {
       const { service, saved } = setup(makeEvent(10));
 
       const result = await service.register(
@@ -232,12 +232,12 @@ describe('RegistrationService', () => {
       expect(manager.findOne).not.toHaveBeenCalled();
     });
 
-    it('no inscribe en eventos sin aprobación completa', async () => {
+    it('no registra asistencia en eventos sin aprobación completa', async () => {
       const { service } = setup(makeEvent(10, pending));
       await expect(
         service.register(10, person('11111') as never, user),
       ).rejects.toThrow(
-        'Solo se pueden inscribir personas a eventos con la aprobación completa.',
+        'Solo se puede registrar asistencia en eventos con la aprobación completa.',
       );
     });
 
@@ -248,11 +248,11 @@ describe('RegistrationService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('no permite inscribir dos veces el mismo documento', async () => {
+    it('no permite registrar dos veces la asistencia del mismo documento', async () => {
       const { service } = setup(makeEvent(10), [person('11111')]);
       await expect(
         service.register(10, person('11.111') as never, user),
-      ).rejects.toThrow('ya está inscrita en este evento');
+      ).rejects.toThrow('ya está registrada en este evento');
     });
 
     it('detecta el duplicado aunque el documento con letras cambie de mayúsculas', async () => {
@@ -263,7 +263,7 @@ describe('RegistrationService', () => {
       await service.register(10, passport('ab12345'), user);
       await expect(
         service.register(10, passport('AB12345'), user),
-      ).rejects.toThrow('ya está inscrita en este evento');
+      ).rejects.toThrow('ya está registrada en este evento');
       expect(saved.map((item) => item.documentNumber)).toEqual(['AB12345']);
     });
 
@@ -293,7 +293,7 @@ describe('RegistrationService', () => {
       expect(result.event.availableSlots).toBe(0);
     });
 
-    it('bloquea la fila del evento para que dos inscripciones a la vez no pasen el cupo', async () => {
+    it('bloquea la fila del evento para que registros simultáneos no superen el cupo', async () => {
       const { service, manager } = setup(makeEvent(10));
       await service.register(10, person('11111') as never, user);
 
@@ -325,7 +325,7 @@ describe('RegistrationService', () => {
       ).rejects.toThrow('El archivo debe ser un Excel .xlsx.');
     });
 
-    it('inscribe las filas válidas y devuelve en un Excel las que tienen error', async () => {
+    it('registra asistentes válidos y devuelve en un Excel las filas con error', async () => {
       const { service, saved, excel } = setup(makeEvent(10), [person('99999')]);
       excel.readRows.mockResolvedValue([
         row(2, '11111'),
@@ -361,18 +361,18 @@ describe('RegistrationService', () => {
       expect(failed.map((item) => [item.rowNumber, item.errors[0]])).toEqual([
         [3, 'Falta: Nombres'],
         [4, 'El correo electrónico no es válido'],
-        [5, 'La persona ya está inscrita en este evento'],
+        [5, 'La asistencia de la persona ya está registrada en este evento'],
         [6, 'Documento repetido en el archivo (fila 2)'],
       ]);
       expect(result.failedFile?.fileName).toBe(
-        'inscripciones-con-error-evento-10.xlsx',
+        'asistencia-con-error-evento-10.xlsx',
       );
       expect(result.failedFile?.contentBase64).toBe(
         Buffer.from('errores').toString('base64'),
       );
     });
 
-    it('detiene la inscripción al llenar el cupo y marca quién ocupó el último', async () => {
+    it('detiene los registros al llenar el cupo y marca quién ocupó el último', async () => {
       const { service, saved, excel } = setup(makeEvent(3), [person('99999')]);
       excel.readRows.mockResolvedValue([
         row(2, '11111'),
@@ -398,7 +398,7 @@ describe('RegistrationService', () => {
       expect(result.event.availableSlots).toBe(0);
     });
 
-    it('no genera archivo de errores si todas las filas se inscriben', async () => {
+    it('no genera archivo de errores si se registra la asistencia de todas las filas', async () => {
       const { service, excel } = setup(makeEvent(10));
       excel.readRows.mockResolvedValue([row(2, '11111')]);
 
@@ -408,7 +408,7 @@ describe('RegistrationService', () => {
       expect(excel.buildFailedFile).not.toHaveBeenCalled();
     });
 
-    it('no carga personas en eventos sin aprobación completa', async () => {
+    it('no carga asistentes en eventos sin aprobación completa', async () => {
       const { service, excel, saved } = setup(makeEvent(10, pending));
       excel.readRows.mockResolvedValue([row(2, '11111')]);
 
@@ -420,13 +420,13 @@ describe('RegistrationService', () => {
   });
 
   describe('remove', () => {
-    it('quita la inscripción', async () => {
+    it('retira el registro de asistencia', async () => {
       const { service, registrations } = setup(makeEvent(10));
       await service.remove(5);
       expect(registrations.delete).toHaveBeenCalledWith(5);
     });
 
-    it('responde 404 si la inscripción no existe', async () => {
+    it('responde 404 si el registro de asistencia no existe', async () => {
       const { service, registrations } = setup(makeEvent(10));
       registrations.delete.mockResolvedValue({ affected: 0 });
       await expect(service.remove(5)).rejects.toBeInstanceOf(NotFoundException);
@@ -434,17 +434,17 @@ describe('RegistrationService', () => {
   });
 });
 
-/** Carga de punta a punta con archivos de Excel reales: plantilla → carga → archivo de errores. */
+/** Flujo de asistencia con Excel real: plantilla → carga → archivo de errores. */
 describe('RegistrationService.importExcel con Excel real', () => {
   const excelService = new RegistrationExcelService();
 
-  /** Llena la plantilla oficial con las filas dadas, como lo haría el usuario. */
+  /** Llena la plantilla oficial con las filas dadas, como lo haría la persona usuaria. */
   async function fillTemplate(rows: (string | null)[][]): Promise<Buffer> {
     const workbook = new Workbook();
     await workbook.xlsx.load(
       (await excelService.buildTemplate()) as unknown as ArrayBuffer,
     );
-    const sheet = workbook.getWorksheet('Inscritos')!;
+    const sheet = workbook.getWorksheet('Asistentes')!;
     rows.forEach((values, i) =>
       values.forEach((value, column) => {
         if (value !== null) sheet.getCell(i + 2, column + 1).value = value;
@@ -459,7 +459,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     await workbook.xlsx.load(
       Buffer.from(contentBase64, 'base64') as unknown as ArrayBuffer,
     );
-    const sheet = workbook.getWorksheet('Inscritos')!;
+    const sheet = workbook.getWorksheet('Asistentes')!;
     const header = (sheet.getRow(1).values as unknown[]).slice(1);
     const rows: unknown[][] = [];
     sheet.eachRow(
@@ -477,7 +477,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     '3001234567',
   ];
 
-  it('guarda las filas válidas y devuelve en un Excel las que tienen datos vacíos o inválidos', async () => {
+  it('registra asistentes válidos y devuelve filas vacías o inválidas en un Excel', async () => {
     const { service, saved } = setup(makeEvent(10), [], excelService);
     const buffer = await fillTemplate([
       ok('11111'),
@@ -523,7 +523,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     ]);
   });
 
-  it('al llenar el cupo devuelve en el Excel a las personas que no alcanzaron cupo, junto con las de error', async () => {
+  it('al llenar el cupo devuelve en el Excel asistentes sin cupo y filas con error', async () => {
     const { service, saved } = setup(
       makeEvent(3),
       [person('99999')],
@@ -563,7 +563,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     ]);
   });
 
-  it('el Excel de errores, ya corregido, se vuelve a cargar y completa la inscripción', async () => {
+  it('el Excel de errores corregido se vuelve a cargar y completa los registros de asistencia', async () => {
     const event = makeEvent(10);
     const { service, saved } = setup(event, [], excelService);
     const first = await service.importExcel(
@@ -585,7 +585,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
         'base64',
       ) as unknown as ArrayBuffer,
     );
-    workbook.getWorksheet('Inscritos')!.getCell('C2').value = 'Luisa';
+    workbook.getWorksheet('Asistentes')!.getCell('C2').value = 'Luisa';
     const corrected = Buffer.from(await workbook.xlsx.writeBuffer());
 
     const second = await service.importExcel(

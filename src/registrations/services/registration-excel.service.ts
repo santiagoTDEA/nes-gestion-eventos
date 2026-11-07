@@ -12,7 +12,7 @@ import {
 export const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-const SHEET_NAME = 'Inscritos';
+const SHEET_NAME = 'Asistentes';
 const TEMPLATE_ROWS = 1000;
 const HEADER_FILL = 'FF0F5A38';
 const ERROR_FILL = 'FFB91C1C';
@@ -121,7 +121,7 @@ export class RegistrationExcelService {
     return this.toBuffer(workbook);
   }
 
-  /** Lee las filas de la hoja de inscritos. Las filas vacías se ignoran. */
+  /** Lee las filas de asistentes. Las filas vacías se ignoran. */
   async readRows(buffer: Buffer): Promise<ExcelRow[]> {
     const workbook = new Workbook();
 
@@ -158,7 +158,7 @@ export class RegistrationExcelService {
 
     if (rows.length === 0) {
       throw new BadRequestException(
-        'El archivo no tiene personas para inscribir.',
+        'El archivo no tiene asistentes para registrar.',
       );
     }
 
@@ -199,7 +199,7 @@ export class RegistrationExcelService {
     ) as Record<keyof RegistrationData, number>;
   }
 
-  /** Hoja "Inscritos" con los encabezados de la plantilla (y columnas extra si se piden). */
+  /** Hoja "Asistentes" con los encabezados de la plantilla (y columnas extra si se piden). */
   private createSheet(
     workbook: Workbook,
     extraColumns: { header: string; width: number }[] = [],
@@ -236,11 +236,11 @@ export class RegistrationExcelService {
     sheet.columns = [{ width: 26 }, { width: 70 }];
 
     const lines: [string, string][] = [
-      ['Plantilla de inscripción', ''],
+      ['Plantilla de asistentes', ''],
       ['', ''],
       [
         'Cómo llenarla',
-        'Escribe una persona por fila en la hoja "Inscritos", desde la fila 2. No cambies los encabezados.',
+        'Escribe una persona por fila en la hoja "Asistentes", desde la fila 2. No cambies los encabezados.',
       ],
       [
         'Todos los datos',
@@ -248,7 +248,7 @@ export class RegistrationExcelService {
       ],
       [
         'Cupo',
-        'Solo se inscriben personas hasta llenar el cupo máximo del evento; las demás se devuelven en el archivo de errores.',
+        'Solo se registra asistencia hasta llenar el cupo máximo del evento; las demás filas se devuelven en el archivo de errores.',
       ],
       ['', ''],
       ['Campo', 'Regla'],

@@ -47,7 +47,7 @@ describe('RegistrationController (permisos)', () => {
   const guard = new PermissionGuard(new Reflector());
 
   it.each(HANDLERS)(
-    '%s está reservado al módulo inscripciones con acceso total',
+    '%s está reservado al módulo de asistencia con acceso total',
     (handler) => {
       const metadata = Reflect.getMetadata(
         PERMISSION_KEY,
@@ -55,7 +55,7 @@ describe('RegistrationController (permisos)', () => {
       ) as PermissionMetadata;
 
       expect(metadata).toMatchObject({
-        module: Module.INSCRIPCIONES,
+        module: Module.ASISTENCIA,
         globalOnly: true,
       });
     },
@@ -78,7 +78,7 @@ describe('RegistrationController (permisos)', () => {
       const role = {
         permissionsFull: true,
         modulesFull: false,
-        accesos: [{ modulo: 'inscripciones', acciones: ['crear'] }],
+        accesos: [{ modulo: 'asistencia', acciones: ['crear'] }],
       };
 
       expect(() => guard.canActivate(contextFor(handler, role))).toThrow(
