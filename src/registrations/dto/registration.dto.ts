@@ -4,7 +4,7 @@ import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 import { DocumentType } from '../constants/registration.constants';
 
 /**
- * Inscripción desde el formulario. Aquí solo se valida la forma del cuerpo;
+ * Registro de asistencia desde el formulario. Aquí solo se valida la forma del cuerpo;
  * el formato de cada dato lo valida el servicio con las mismas reglas del Excel.
  */
 export class RegisterParticipantDto {

@@ -32,7 +32,7 @@ export interface UploadedFileLike {
   buffer: Buffer;
 }
 
-/** Evento aprobado con su ocupación, para escoger a cuál inscribir. */
+/** Evento aprobado con su ocupación, para escoger dónde registrar asistencia. */
 export interface RegistrationEventView {
   id: number;
   name: string;
@@ -91,7 +91,7 @@ export class RegistrationService {
     private readonly excel: RegistrationExcelService,
   ) {}
 
-  /** Eventos con la aprobación completa y cuántas personas tienen inscritas. */
+  /** Eventos con la aprobación completa y cuántas personas tienen asistencia registrada. */
   async findApprovedEvents(): Promise<RegistrationEventView[]> {
     const events = await this.events.find({
       relations: { approvals: true, faculty: true },
@@ -115,7 +115,7 @@ export class RegistrationService {
       .map((event) => this.toEventView(event, countByEvent.get(event.id) ?? 0));
   }
 
-  /** Evento aprobado con la lista de inscritos, en el orden en que se inscribieron. */
+  /** Evento aprobado con la lista de asistentes, en el orden de registro. */
   async findByEvent(eventId: number): Promise<{
     event: RegistrationEventView;
     registrations: RegistrationView[];
@@ -144,7 +144,7 @@ export class RegistrationService {
     };
   }
 
-  /** Inscribe a una persona desde el formulario. */
+  /** Registra la asistencia de una persona desde el formulario. */
   async register(
     eventId: number,
     dto: RegisterParticipantDto,
@@ -175,7 +175,7 @@ export class RegistrationService {
 
       if (duplicate) {
         throw new ConflictException(
-          `La persona con documento ${data.documentNumber} ya está inscrita en este evento.`,
+          `La asistencia de la persona con documento ${data.documentNumber} ya está registrada en este evento.`,
         );
       }
 
@@ -203,8 +203,8 @@ export class RegistrationService {
   }
 
   /**
-   * Inscribe a las personas de un Excel. Las filas con datos faltantes o inválidos,
-   * repetidas o que ya no caben en el cupo se devuelven en un Excel para corregirlas.
+   * Registra la asistencia desde un Excel. Las filas incompletas, inválidas,
+   * repetidas o sin cupo se devuelven en un Excel para corregirlas.
    */
   async importExcel(
     eventId: number,
@@ -247,7 +247,7 @@ export class RegistrationService {
           const firstRow = rowByDocument.get(data.documentNumber);
 
           if (registeredDocuments.has(data.documentNumber)) {
-            errors.push('La persona ya está inscrita en este evento');
+            errors.push('La asistencia de la persona ya está registrada en este evento');
           } else if (firstRow) {
             errors.push(`Documento repetido en el archivo (fila ${firstRow})`);
           }
@@ -296,7 +296,7 @@ export class RegistrationService {
     const failedFile =
       result.failed.length > 0
         ? {
-            fileName: `inscripciones-con-error-evento-${eventId}.xlsx`,
+            fileName: `asistencia-con-error-evento-${eventId}.xlsx`,
             contentBase64: (
               await this.excel.buildFailedFile(result.failed)
             ).toString('base64'),
@@ -319,7 +319,7 @@ export class RegistrationService {
     const result = await this.registrations.delete(id);
 
     if (!result.affected) {
-      throw new NotFoundException('No se encontró la inscripción.');
+      throw new NotFoundException('No se encontró el registro de asistencia.');
     }
   }
 
@@ -329,7 +329,7 @@ export class RegistrationService {
 
   /**
    * Bloquea la fila del evento hasta que termine la transacción, para que dos
-   * inscripciones al mismo tiempo no pasen el cupo, y verifica que esté aprobado.
+   * registros simultáneos de asistencia no superen el cupo y verifica que esté aprobado.
    */
   private async lockApprovedEvent(
     manager: EntityManager,
@@ -351,7 +351,7 @@ export class RegistrationService {
 
     if (!isFullyApproved(approvals)) {
       throw new ConflictException(
-        'Solo se pueden inscribir personas a eventos con la aprobación completa.',
+        'Solo se puede registrar asistencia en eventos con la aprobación completa.',
       );
     }
 

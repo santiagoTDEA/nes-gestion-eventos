@@ -36,16 +36,16 @@ import {
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-/** Inscripciones solo para roles con permisos y módulos completos. */
+/** Gestión de asistencia solo para roles con permisos y módulos completos. */
 const GLOBAL_ONLY = { globalOnly: true };
 
 @ApiBearerAuth('access-token')
-@ApiTags('Inscripciones')
+@ApiTags('Asistencia')
 @Controller('registrations')
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.VER, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.VER, GLOBAL_ONLY)
   @Get('events')
   @ApiOperation({
     summary: 'Eventos con aprobación completa y su ocupación de cupos',
@@ -54,19 +54,19 @@ export class RegistrationController {
     return this.registrationService.findApprovedEvents();
   }
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.VER, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.VER, GLOBAL_ONLY)
   @Get('template')
-  @ApiOperation({ summary: 'Descargar la plantilla de Excel para inscribir' })
+  @ApiOperation({ summary: 'Descargar la plantilla de asistencia en Excel' })
   async template(): Promise<StreamableFile> {
     return new StreamableFile(await this.registrationService.buildTemplate(), {
       type: XLSX_MIME,
-      disposition: 'attachment; filename="plantilla-inscripciones.xlsx"',
+      disposition: 'attachment; filename="plantilla-asistencia.xlsx"',
     });
   }
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.VER, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.VER, GLOBAL_ONLY)
   @Get('events/:eventId')
-  @ApiOperation({ summary: 'Personas inscritas a un evento' })
+  @ApiOperation({ summary: 'Asistentes de un evento' })
   async findByEvent(@Param('eventId', ParseIntPipe) eventId: number): Promise<{
     event: RegistrationEventView;
     registrations: RegistrationView[];
@@ -74,9 +74,9 @@ export class RegistrationController {
     return this.registrationService.findByEvent(eventId);
   }
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.CREAR, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.CREAR, GLOBAL_ONLY)
   @Post('events/:eventId')
-  @ApiOperation({ summary: 'Inscribir una persona desde el formulario' })
+  @ApiOperation({ summary: 'Registrar la asistencia de una persona desde el formulario' })
   async register(
     @Param('eventId', ParseIntPipe) eventId: number,
     @Body() dto: RegisterParticipantDto,
@@ -85,12 +85,12 @@ export class RegistrationController {
     return this.registrationService.register(eventId, dto, user);
   }
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.CREAR, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.CREAR, GLOBAL_ONLY)
   @Post('events/:eventId/import')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary:
-      'Inscribir personas desde un Excel (.xlsx); devuelve las filas con error en otro Excel',
+      'Registrar asistentes desde un Excel (.xlsx); devuelve las filas con error en otro Excel',
   })
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
@@ -103,9 +103,9 @@ export class RegistrationController {
     return this.registrationService.importExcel(eventId, file, user);
   }
 
-  @RequirePermission(Module.INSCRIPCIONES, Action.ELIMINAR, GLOBAL_ONLY)
+  @RequirePermission(Module.ASISTENCIA, Action.ELIMINAR, GLOBAL_ONLY)
   @Delete(':id')
-  @ApiOperation({ summary: 'Quitar una inscripción' })
+  @ApiOperation({ summary: 'Retirar la asistencia de una persona' })
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
     return this.registrationService.remove(id);
   }
