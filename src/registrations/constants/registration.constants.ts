@@ -1,4 +1,4 @@
-/** Tipos de documento que se aceptan al inscribir a una persona. */
+/** Tipos de documento que se aceptan para registrar asistencia. */
 export enum DocumentType {
   CC = 'CC',
   TI = 'TI',
@@ -15,13 +15,13 @@ export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
   [DocumentType.PPT]: 'Permiso por protección temporal',
 };
 
-/** Cómo llegó la inscripción. */
+/** Medio por el que se registró la asistencia. */
 export enum RegistrationSource {
   FORMULARIO = 'formulario',
   EXCEL = 'excel',
 }
 
-/** Datos básicos para identificar y contactar a una persona inscrita. */
+/** Datos básicos para identificar y contactar a una persona asistente. */
 export interface RegistrationData {
   documentType: string;
   documentNumber: string;
@@ -75,7 +75,7 @@ export function normalizeRegistration(
 }
 
 /**
- * Valida una inscripción ya normalizada. Devuelve los errores encontrados;
+ * Valida los datos de asistencia ya normalizados. Devuelve los errores encontrados;
  * primero los datos que faltan y después los que tienen mal el formato.
  */
 export function validateRegistration(data: RegistrationData): string[] {

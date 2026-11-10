@@ -12,11 +12,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Event } from '../../events/entities/event.entity';
 import { RegistrationSource } from '../constants/registration.constants';
 
-/** Persona inscrita a un evento aprobado. Un documento solo se inscribe una vez por evento. */
+/** Asistente de un evento aprobado. Un documento solo se registra una vez por evento. */
 @Entity('event_registrations')
 @Index(['event', 'documentNumber'], { unique: true })
 export class EventRegistration {
-  @ApiProperty({ description: 'Identificador de la inscripción', example: 1 })
+  @ApiProperty({ description: 'Identificador de la asistencia', example: 1 })
   @PrimaryGeneratedColumn({ name: 'id_registration' })
   id!: number;
 
@@ -53,7 +53,7 @@ export class EventRegistration {
 
   @ApiProperty({
     enum: RegistrationSource,
-    description: 'Origen de la inscripción',
+    description: 'Medio de registro de asistencia',
   })
   @Column({ name: 'source', type: 'varchar', length: 12 })
   source!: RegistrationSource;

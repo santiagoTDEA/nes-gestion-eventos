@@ -16,11 +16,16 @@ import { DiffusionService } from '../../diffusion/services/diffusion.service';
 import { SignatureService } from '../../auth/services/signature.service';
 import { ErrorManager } from '../../utils/error.manager';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { getOwnerScope } from '../../auth/utils/access-scope.util';
+import {
+  getOwnerScope,
+  hasGlobalAccess,
+} from '../../auth/utils/access-scope.util';
 import {
   ApprovalStatus,
   flowPosition,
   isFirstStep,
+  isFullyApproved,
+  normalizeRoleName,
   WorkflowStatus,
 } from '../constants/approval-flow';
 
@@ -470,16 +475,13 @@ export class EventService {
   ): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      const isApproved = isFullyApproved(event.approvals);
 
-      // Con el flujo de aprobación completo el evento queda cerrado: no se edita.
-      if (
-        event.approvals.length > 0 &&
-        event.approvals.every((step) => step.status === ApprovalStatus.APROBADO)
-      ) {
+      if (isApproved && !this.canEditApprovedEvent(user)) {
         throw new ErrorManager({
-          type: 'CONFLICT',
+          type: 'FORBIDDEN',
           message:
-            'El evento ya completó el flujo de aprobación y no se puede editar',
+            'Solo los roles de Verificación y administración pueden editar eventos aprobados',
         });
       }
 
@@ -560,6 +562,13 @@ export class EventService {
 
       throw error;
     }
+  }
+
+  private canEditApprovedEvent(user: AuthUser): boolean {
+    return (
+      hasGlobalAccess(user.role) ||
+      normalizeRoleName(user.role?.name) === 'verificacion'
+    );
   }
 
   async remove(idEvent: number, user: AuthUser): Promise<void> {

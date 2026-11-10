@@ -58,7 +58,7 @@ describe('normalizeRegistration', () => {
 });
 
 describe('validateRegistration', () => {
-  it('acepta una inscripción válida', () => {
+  it('acepta datos válidos para registrar asistencia', () => {
     expect(validateRegistration(valid)).toEqual([]);
   });
 
