@@ -117,6 +117,9 @@ function setup(
   };
   const registrations = {
     find: jest.fn(() => Promise.resolve(saved)),
+    findOne: jest.fn<() => Promise<unknown>>(() =>
+      Promise.resolve({ id: 5, event }),
+    ),
     delete: jest.fn<(id: number) => Promise<{ affected: number }>>(() =>
       Promise.resolve({ affected: 1 }),
     ),
@@ -365,7 +368,7 @@ describe('RegistrationService', () => {
         [6, 'Documento repetido en el archivo (fila 2)'],
       ]);
       expect(result.failedFile?.fileName).toBe(
-        'inscripciones-con-error-evento-10.xlsx',
+        'asistencia-con-error-evento-10.xlsx',
       );
       expect(result.failedFile?.contentBase64).toBe(
         Buffer.from('errores').toString('base64'),
@@ -428,8 +431,37 @@ describe('RegistrationService', () => {
 
     it('responde 404 si la inscripción no existe', async () => {
       const { service, registrations } = setup(makeEvent(10));
-      registrations.delete.mockResolvedValue({ affected: 0 });
+      registrations.findOne.mockResolvedValue(null);
       await expect(service.remove(5)).rejects.toBeInstanceOf(NotFoundException);
+      expect(registrations.delete).not.toHaveBeenCalled();
+    });
+
+    it('no quita inscritos de un evento cancelado', async () => {
+      const { service, registrations } = setup(
+        Object.assign(makeEvent(10), { cancelledAt: new Date() }),
+      );
+      await expect(service.remove(5)).rejects.toThrow(/cancelado/);
+      expect(registrations.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('eventos cancelados', () => {
+    it('no inscribe personas en un evento cancelado', async () => {
+      const { service } = setup(
+        Object.assign(makeEvent(10), { cancelledAt: new Date() }),
+      );
+      await expect(
+        service.register(10, person('1037654321') as never, user),
+      ).rejects.toThrow(/cancelado/);
+    });
+
+    it('responde 404 al consultar los inscritos de un evento cancelado', async () => {
+      const { service } = setup(
+        Object.assign(makeEvent(10), { cancelledAt: new Date() }),
+      );
+      await expect(service.findByEvent(1)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
   });
 });
@@ -444,7 +476,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     await workbook.xlsx.load(
       (await excelService.buildTemplate()) as unknown as ArrayBuffer,
     );
-    const sheet = workbook.getWorksheet('Inscritos')!;
+    const sheet = workbook.getWorksheet('Asistentes')!;
     rows.forEach((values, i) =>
       values.forEach((value, column) => {
         if (value !== null) sheet.getCell(i + 2, column + 1).value = value;
@@ -459,7 +491,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
     await workbook.xlsx.load(
       Buffer.from(contentBase64, 'base64') as unknown as ArrayBuffer,
     );
-    const sheet = workbook.getWorksheet('Inscritos')!;
+    const sheet = workbook.getWorksheet('Asistentes')!;
     const header = (sheet.getRow(1).values as unknown[]).slice(1);
     const rows: unknown[][] = [];
     sheet.eachRow(
@@ -585,7 +617,7 @@ describe('RegistrationService.importExcel con Excel real', () => {
         'base64',
       ) as unknown as ArrayBuffer,
     );
-    workbook.getWorksheet('Inscritos')!.getCell('C2').value = 'Luisa';
+    workbook.getWorksheet('Asistentes')!.getCell('C2').value = 'Luisa';
     const corrected = Buffer.from(await workbook.xlsx.writeBuffer());
 
     const second = await service.importExcel(

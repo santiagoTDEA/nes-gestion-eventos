@@ -20,6 +20,8 @@ export enum NotificationType {
   DEVUELTO = 'devuelto',
   REENVIADO = 'reenviado',
   APROBADO = 'aprobado',
+  CANCELADO = 'cancelado',
+  REACTIVADO = 'reactivado',
   DIFUSION_NUEVA = 'difusion_nueva',
   DIFUSION_ESTADO = 'difusion_estado',
   DIFUSION_REVISION = 'difusion_revision',

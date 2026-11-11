@@ -28,6 +28,18 @@ export function isFirstStep(roleName?: string | null): boolean {
   return flowPosition(roleName) === 0;
 }
 
+/** Paso de Verificación: su responsable puede cancelar, reactivar y editar el evento. */
+export const VERIFICATION_STEP = 'verificacion';
+
+export function isVerificationRole(roleName?: string | null): boolean {
+  return normalizeRoleName(roleName) === VERIFICATION_STEP;
+}
+
+/** El evento está cancelado (se oculta en todos los módulos menos en Eventos). */
+export function isCancelled(event: { cancelledAt?: Date | null }): boolean {
+  return !!event.cancelledAt;
+}
+
 /** Estado general del evento dentro del workflow. */
 export enum WorkflowStatus {
   EN_FLUJO = 'en_flujo',

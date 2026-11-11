@@ -60,7 +60,7 @@ export class RegistrationController {
   async template(): Promise<StreamableFile> {
     return new StreamableFile(await this.registrationService.buildTemplate(), {
       type: XLSX_MIME,
-      disposition: 'attachment; filename="plantilla-inscripciones.xlsx"',
+      disposition: 'attachment; filename="plantilla-asistencia.xlsx"',
     });
   }
 

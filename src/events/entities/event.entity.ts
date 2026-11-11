@@ -252,4 +252,66 @@ export class Event {
   @ApiProperty({ description: 'Fecha de creación del evento' })
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  /*
+   * Cancelación. Es una marca aparte del workflow: no toca aprobaciones, firmas ni
+   * workflowStatus, así al reactivar el evento sigue exactamente donde estaba.
+   */
+  @ApiProperty({
+    description: 'Fecha en que se canceló el evento; nula si está activo',
+    required: false,
+  })
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt?: Date | null;
+
+  @ApiProperty({
+    description: 'Motivo de la cancelación',
+    required: false,
+  })
+  @Column({ name: 'cancellation_reason', type: 'text', nullable: true })
+  cancellationReason?: string | null;
+
+  @ApiProperty({
+    description: 'Id del usuario que canceló el evento',
+    required: false,
+  })
+  @Column({ name: 'cancelled_by', type: 'uuid', nullable: true })
+  cancelledBy?: string | null;
+
+  @ApiProperty({
+    description: 'Nombre de quien canceló el evento, para mostrarlo',
+    required: false,
+  })
+  @Column({
+    name: 'cancelled_by_name',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  cancelledByName?: string | null;
+
+  @ApiProperty({
+    description: 'Fecha de la última reactivación del evento',
+    required: false,
+  })
+  @Column({ name: 'reactivated_at', type: 'timestamp', nullable: true })
+  reactivatedAt?: Date | null;
+
+  @ApiProperty({
+    description: 'Id del usuario que reactivó el evento por última vez',
+    required: false,
+  })
+  @Column({ name: 'reactivated_by', type: 'uuid', nullable: true })
+  reactivatedBy?: string | null;
+
+  /**
+   * Calculado por el servidor para el usuario que consulta (no es columna): puede
+   * cancelar, reactivar y editar el evento en cualquier estado sin tocar el flujo.
+   */
+  @ApiProperty({
+    description:
+      'El usuario autenticado puede cancelar, reactivar y editar el evento en cualquier estado',
+    required: false,
+  })
+  canManage?: boolean;
 }

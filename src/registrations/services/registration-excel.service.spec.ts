@@ -17,7 +17,7 @@ const HEADERS = [
 async function excel(
   rows: unknown[][],
   headers = HEADERS,
-  sheetName = 'Inscritos',
+  sheetName = 'Asistentes',
 ): Promise<Buffer> {
   const workbook = new Workbook();
   const sheet = workbook.addWorksheet(sheetName);
@@ -40,9 +40,9 @@ describe('RegistrationExcelService', () => {
   });
 
   describe('buildTemplate', () => {
-    it('trae la hoja Inscritos con los encabezados y la hoja de instrucciones', async () => {
+    it('trae la hoja Asistentes con los encabezados y la hoja de instrucciones', async () => {
       const workbook = await load(await service.buildTemplate());
-      const sheet = workbook.getWorksheet('Inscritos')!;
+      const sheet = workbook.getWorksheet('Asistentes')!;
 
       expect((sheet.getRow(1).values as unknown[]).slice(1)).toEqual(HEADERS);
       expect(workbook.getWorksheet('Instrucciones')).toBeDefined();
@@ -50,7 +50,7 @@ describe('RegistrationExcelService', () => {
 
     it('ofrece la lista de tipos de documento en la columna A', async () => {
       const sheet = (await load(await service.buildTemplate())).getWorksheet(
-        'Inscritos',
+        'Asistentes',
       )!;
 
       expect(sheet.getCell('A2').dataValidation).toMatchObject({
@@ -195,7 +195,7 @@ describe('RegistrationExcelService', () => {
         },
       ]);
 
-      const sheet = (await load(buffer)).getWorksheet('Inscritos')!;
+      const sheet = (await load(buffer)).getWorksheet('Asistentes')!;
       expect(sheet.getCell('G2').value).toBe(7);
       expect(sheet.getCell('H2').value).toBe('Error uno; Error dos');
 

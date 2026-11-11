@@ -291,6 +291,20 @@ export class CreateEventDto {
 
 export class UpdateEventDto extends PartialType(CreateEventDto) {}
 
+export class CancelEventDto {
+  @ApiProperty({
+    description: 'Motivo por el que se cancela el evento',
+    example: 'No se alcanzó el cupo mínimo de participantes.',
+    minLength: 10,
+    maxLength: 1000,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(10)
+  @MaxLength(1000)
+  reason!: string;
+}
+
 export class ReturnEventDto {
   @ApiProperty({
     description: 'Motivo por el que el evento se devuelve al autor',

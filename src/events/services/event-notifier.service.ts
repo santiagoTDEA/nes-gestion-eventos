@@ -161,6 +161,51 @@ export class EventNotifier {
     });
   }
 
+  /** El evento se canceló: avisa al autor y a todos los responsables del flujo. */
+  async cancelled(
+    event: Event,
+    reason: string,
+    actorUserId: string,
+  ): Promise<void> {
+    await this.safely(async () => {
+      const preview =
+        reason.length > MAX_OBSERVATION_PREVIEW
+          ? `${reason.slice(0, MAX_OBSERVATION_PREVIEW)}…`
+          : reason;
+
+      await this.notifyEveryone(event, actorUserId, {
+        type: NotificationType.CANCELADO,
+        message: `El evento «${event.name}» fue cancelado: ${preview}`,
+      });
+    });
+  }
+
+  /** El evento se reactivó y sigue en el paso del flujo donde estaba. */
+  async reactivated(event: Event, actorUserId: string): Promise<void> {
+    await this.safely(async () => {
+      await this.notifyEveryone(event, actorUserId, {
+        type: NotificationType.REACTIVADO,
+        message: `El evento «${event.name}» fue reactivado y continúa donde estaba.`,
+      });
+    });
+  }
+
+  private async notifyEveryone(
+    event: Event,
+    actorUserId: string,
+    content: { type: NotificationType; message: string },
+  ): Promise<void> {
+    const context = await this.buildContext(event);
+    const drafts: NotificationDraft[] = [];
+    const everyone = [
+      ...context.authorIds,
+      ...context.steps.map((step) => step.userId),
+    ].filter((id) => id !== actorUserId);
+
+    this.toUsers(drafts, everyone, event, content);
+    await this.notificationService.notify(drafts);
+  }
+
   /** Usuarios que se consideran autores del evento (creador y persona de Elaboración). */
   async authorIds(event: Event): Promise<string[]> {
     return (await this.buildContext(event)).authorIds;

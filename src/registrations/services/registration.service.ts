@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { isFullyApproved } from '../../events/constants/approval-flow';
+import {
+  isCancelled,
+  isFullyApproved,
+} from '../../events/constants/approval-flow';
 import { EventApproval } from '../../events/entities/event-approval.entity';
 import { Event } from '../../events/entities/event.entity';
 import {
@@ -111,7 +114,9 @@ export class RegistrationService {
     );
 
     return events
-      .filter((event) => isFullyApproved(event.approvals))
+      .filter(
+        (event) => isFullyApproved(event.approvals) && !isCancelled(event),
+      )
       .map((event) => this.toEventView(event, countByEvent.get(event.id) ?? 0));
   }
 
@@ -125,7 +130,7 @@ export class RegistrationService {
       relations: { approvals: true, faculty: true },
     });
 
-    if (!event || !isFullyApproved(event.approvals)) {
+    if (!event || !isFullyApproved(event.approvals) || isCancelled(event)) {
       throw new NotFoundException(
         'No se encontró el evento o todavía no tiene la aprobación completa.',
       );
@@ -296,7 +301,7 @@ export class RegistrationService {
     const failedFile =
       result.failed.length > 0
         ? {
-            fileName: `inscripciones-con-error-evento-${eventId}.xlsx`,
+            fileName: `asistencia-con-error-evento-${eventId}.xlsx`,
             contentBase64: (
               await this.excel.buildFailedFile(result.failed)
             ).toString('base64'),
@@ -316,11 +321,22 @@ export class RegistrationService {
   }
 
   async remove(id: number): Promise<void> {
-    const result = await this.registrations.delete(id);
+    const registration = await this.registrations.findOne({
+      where: { id },
+      relations: { event: true },
+    });
 
-    if (!result.affected) {
+    if (!registration) {
       throw new NotFoundException('No se encontró la inscripción.');
     }
+
+    if (isCancelled(registration.event)) {
+      throw new ConflictException(
+        'El evento está cancelado; no se pueden modificar sus inscritos.',
+      );
+    }
+
+    await this.registrations.delete(id);
   }
 
   buildTemplate(): Promise<Buffer> {
@@ -352,6 +368,12 @@ export class RegistrationService {
     if (!isFullyApproved(approvals)) {
       throw new ConflictException(
         'Solo se pueden inscribir personas a eventos con la aprobación completa.',
+      );
+    }
+
+    if (isCancelled(event)) {
+      throw new ConflictException(
+        'El evento está cancelado; no se pueden inscribir personas.',
       );
     }
 

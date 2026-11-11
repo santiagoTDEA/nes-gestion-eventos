@@ -6,6 +6,7 @@ import { RoleRepository } from '../../roles/repositories/role.repository';
 import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
 import {
+  CancelEventDto,
   CreateEventDto,
   ReturnEventDto,
   UpdateEventDto,
@@ -16,11 +17,17 @@ import { DiffusionService } from '../../diffusion/services/diffusion.service';
 import { SignatureService } from '../../auth/services/signature.service';
 import { ErrorManager } from '../../utils/error.manager';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { getOwnerScope } from '../../auth/utils/access-scope.util';
+import {
+  getOwnerScope,
+  hasGlobalAccess,
+} from '../../auth/utils/access-scope.util';
 import {
   ApprovalStatus,
   flowPosition,
+  isCancelled,
   isFirstStep,
+  isFullyApproved,
+  isVerificationRole,
   WorkflowStatus,
 } from '../constants/approval-flow';
 
@@ -36,11 +43,150 @@ export class EventService {
     private readonly signatureService: SignatureService,
   ) {}
 
+  /** Todos los eventos visibles, incluidos los cancelados (solo el módulo Eventos los muestra). */
   async findAll(user: AuthUser): Promise<Event[]> {
-    return this.eventRepository.findAll(getOwnerScope(user));
+    const events = await this.eventRepository.findAll(getOwnerScope(user));
+    const managed = await this.managedEventIds(
+      user,
+      events.map((event) => event.id),
+    );
+
+    return events.map((event) =>
+      Object.assign(event, {
+        canManage: managed === 'all' || managed.has(event.id),
+      }),
+    );
   }
 
   async findById(idEvent: number, user: AuthUser): Promise<Event> {
+    const event = await this.findVisible(idEvent, user);
+    event.canManage = await this.canManage(event, user);
+
+    return event;
+  }
+
+  /**
+   * Cancela el evento en el estado en que esté. Solo marca la cancelación: las
+   * aprobaciones, firmas y el estado del workflow quedan intactos para reactivarlo.
+   */
+  async cancel(
+    idEvent: number,
+    dto: CancelEventDto,
+    user: AuthUser,
+  ): Promise<Event> {
+    try {
+      const event = await this.findVisible(idEvent, user);
+      await this.assertCanManage(event, user, 'cancelar');
+
+      if (isCancelled(event)) {
+        throw new ErrorManager({
+          type: 'CONFLICT',
+          message: 'El evento ya está cancelado',
+        });
+      }
+
+      const reason = dto.reason.trim();
+      const person = await this.personRepository.findByUserId(user.userId);
+
+      await this.eventRepository.setCancellation(idEvent, {
+        cancelledAt: new Date(),
+        cancellationReason: reason,
+        cancelledBy: user.userId,
+        cancelledByName: person?.name || user.username,
+      });
+
+      const updated = await this.findById(idEvent, user);
+      await this.notifier.cancelled(updated, reason, user.userId);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /** Quita la cancelación: el evento sigue en el mismo paso y con las mismas firmas. */
+  async reactivate(idEvent: number, user: AuthUser): Promise<Event> {
+    try {
+      const event = await this.findVisible(idEvent, user);
+      await this.assertCanManage(event, user, 'reactivar');
+
+      if (!isCancelled(event)) {
+        throw new ErrorManager({
+          type: 'CONFLICT',
+          message: 'El evento no está cancelado',
+        });
+      }
+
+      await this.eventRepository.clearCancellation(idEvent, user.userId);
+
+      const updated = await this.findById(idEvent, user);
+      await this.notifier.reactivated(updated, user.userId);
+
+      return updated;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Puede cancelar, reactivar y editar el evento en cualquier estado:
+   * - rol con permisos y módulos completos (administrador), o
+   * - rol Verificación y responsable del paso de Verificación de ese evento.
+   */
+  private async canManage(event: Event, user: AuthUser): Promise<boolean> {
+    const managed = await this.managedEventIds(user, [event.id]);
+
+    return managed === 'all' || managed.has(event.id);
+  }
+
+  private async managedEventIds(
+    user: AuthUser,
+    eventIds: number[],
+  ): Promise<'all' | Set<number>> {
+    if (hasGlobalAccess(user.role)) return 'all';
+    if (!isVerificationRole(user.role?.name)) return new Set();
+
+    return new Set(
+      await this.eventRepository.findVerificationEventIds(
+        user.userId,
+        eventIds,
+      ),
+    );
+  }
+
+  private async assertCanManage(
+    event: Event,
+    user: AuthUser,
+    action: string,
+  ): Promise<void> {
+    if (!(await this.canManage(event, user))) {
+      throw new ErrorManager({
+        type: 'FORBIDDEN',
+        message: `Solo un administrador o el responsable de Verificación del evento pueden ${action}lo`,
+      });
+    }
+  }
+
+  /** Las acciones del flujo no aplican a un evento cancelado. */
+  private assertNotCancelled(event: Event, action: string): void {
+    if (isCancelled(event)) {
+      throw new ErrorManager({
+        type: 'CONFLICT',
+        message: `El evento está cancelado; reactívalo antes de ${action}`,
+      });
+    }
+  }
+
+  /** Evento por id, validando que el usuario lo pueda ver. */
+  private async findVisible(idEvent: number, user: AuthUser): Promise<Event> {
     try {
       const event = await this.eventRepository.findById(idEvent);
 
@@ -340,6 +486,7 @@ export class EventService {
   async approve(idEvent: number, user: AuthUser): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.assertNotCancelled(event, 'firmarlo');
       const current = await this.resolveCurrentStep(event, user);
 
       current.status = ApprovalStatus.APROBADO;
@@ -383,6 +530,7 @@ export class EventService {
   ): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.assertNotCancelled(event, 'devolverlo');
       const current = await this.resolveCurrentStep(event, user);
 
       const observation = new EventObservation();
@@ -418,6 +566,7 @@ export class EventService {
   async resubmit(idEvent: number, user: AuthUser): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.assertNotCancelled(event, 'reenviarlo');
 
       if (event.workflowStatus !== WorkflowStatus.DEVUELTO) {
         throw new ErrorManager({
@@ -470,12 +619,13 @@ export class EventService {
   ): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.assertNotCancelled(event, 'editarlo');
 
-      // Con el flujo de aprobación completo el evento queda cerrado: no se edita.
-      if (
-        event.approvals.length > 0 &&
-        event.approvals.every((step) => step.status === ApprovalStatus.APROBADO)
-      ) {
+      const approved = isFullyApproved(event.approvals);
+
+      // Con el flujo completo el evento queda cerrado, salvo para el administrador
+      // y el responsable de Verificación, que pueden corregir sus datos.
+      if (approved && !event.canManage) {
         throw new ErrorManager({
           type: 'CONFLICT',
           message:
@@ -483,7 +633,25 @@ export class EventService {
         });
       }
 
-      const { facultyId, approvals, ...fields } = updateEventDto;
+      const {
+        facultyId,
+        approvals: requestedApprovals,
+        ...fields
+      } = updateEventDto;
+      // En un evento aprobado no se tocan responsables ni firmas: el flujo queda igual.
+      const approvals = approved ? undefined : requestedApprovals;
+
+      if (fields.maximumCapacity !== undefined) {
+        const registered =
+          await this.eventRepository.countRegistrations(idEvent);
+
+        if (fields.maximumCapacity < registered) {
+          throw new ErrorManager({
+            type: 'BAD_REQUEST',
+            message: `El cupo máximo no puede ser menor a las ${registered} personas ya inscritas`,
+          });
+        }
+      }
 
       const normalizeTime = (value: string) => value.slice(0, 5);
 
@@ -552,7 +720,17 @@ export class EventService {
         event.otherEventType = null;
       }
 
-      return this.eventRepository.update(event, approvals !== undefined);
+      const updated = await this.eventRepository.update(
+        event,
+        approvals !== undefined,
+      );
+
+      // Un evento aprobado ya tiene solicitudes de difusión: se les pasan los datos nuevos.
+      if (approved) {
+        await this.diffusionService.refreshEventSnapshot(updated);
+      }
+
+      return updated;
     } catch (error) {
       if (error instanceof ErrorManager) {
         ErrorManager.createAsignatureError(error.message);
@@ -564,7 +742,7 @@ export class EventService {
 
   async remove(idEvent: number, user: AuthUser): Promise<void> {
     try {
-      await this.findById(idEvent, user);
+      await this.findVisible(idEvent, user);
 
       await this.eventRepository.delete(idEvent);
     } catch (error) {

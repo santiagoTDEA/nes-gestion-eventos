@@ -7,7 +7,10 @@ import { User } from '../../auth/entities/auth.entity';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
 import { hasGlobalAccess } from '../../auth/utils/access-scope.util';
 import { ErrorManager } from '../../utils/error.manager';
-import { normalizeRoleName } from '../../events/constants/approval-flow';
+import {
+  isCancelled,
+  normalizeRoleName,
+} from '../../events/constants/approval-flow';
 import {
   NotificationService,
   NotificationDraft,
@@ -143,18 +146,7 @@ export class DiffusionService {
             status: DiffusionStatus.SOLICITADA,
             requestedBy: event.createdBy,
             authorIds,
-            eventSnapshot: {
-              name: event.name,
-              eventType: event.eventType,
-              faculty: event.faculty?.name ?? '',
-              modality: event.modality,
-              startDate: event.startDate,
-              endDate: event.endDate,
-              startTime: event.startTime,
-              endTime: event.endTime,
-              participantProfile: event.participantProfile,
-              presentation: event.presentation,
-            },
+            eventSnapshot: this.buildSnapshot(event),
           }),
         );
 
@@ -188,19 +180,93 @@ export class DiffusionService {
     }
   }
 
+  /**
+   * Se llama al editar un evento ya aprobado: actualiza la copia de los datos del
+   * evento en sus solicitudes para que las áreas trabajen con la información vigente.
+   * No crea ni borra solicitudes ni cambia su estado o sus piezas; solo avisa a las
+   * áreas cuyas solicitudes cambiaron.
+   */
+  async refreshEventSnapshot(event: Event): Promise<void> {
+    try {
+      const snapshot = this.buildSnapshot(event);
+      const requests = await this.requests.find({
+        where: { event: { id: event.id } },
+      });
+      const changed = requests.filter(
+        (request) => !this.sameSnapshot(request.eventSnapshot, snapshot),
+      );
+
+      if (changed.length === 0) return;
+
+      for (const request of changed) {
+        request.eventSnapshot = snapshot;
+      }
+      await this.requests.save(changed);
+
+      const drafts: NotificationDraft[] = [];
+      for (const area of new Set(changed.map((request) => request.area))) {
+        for (const userId of await this.executorIds(area)) {
+          drafts.push({
+            userId,
+            eventId: event.id,
+            type: NotificationType.DIFUSION_ESTADO,
+            message: `Se actualizaron los datos del evento «${event.name}»; revisa la solicitud de ${AREA_LABEL[area]}.`,
+          });
+        }
+      }
+
+      await this.notifications.notify(drafts);
+    } catch (error) {
+      // Guardar el evento no debe fallar porque la difusión no se pudo actualizar.
+      this.logger.error(
+        'No se pudieron actualizar los datos del evento en sus solicitudes de difusión',
+        error,
+      );
+    }
+  }
+
+  /** Copia de los datos del evento que necesitan las áreas de difusión. */
+  private buildSnapshot(event: Event): DiffusionRequest['eventSnapshot'] {
+    return {
+      name: event.name,
+      eventType: event.eventType,
+      faculty: event.faculty?.name ?? '',
+      modality: event.modality,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      participantProfile: event.participantProfile,
+      presentation: event.presentation,
+    };
+  }
+
+  private sameSnapshot(
+    current: DiffusionRequest['eventSnapshot'] | null | undefined,
+    next: DiffusionRequest['eventSnapshot'],
+  ): boolean {
+    if (!current) return false;
+
+    return (Object.keys(next) as (keyof typeof next)[]).every(
+      (key) => current[key] === next[key],
+    );
+  }
+
   async findAll(user: AuthUser): Promise<DiffusionRequestView[]> {
     const query = this.requests
       .createQueryBuilder('request')
       .innerJoinAndSelect('request.event', 'event')
       .leftJoinAndSelect('request.assets', 'asset')
       .leftJoinAndSelect('request.history', 'history')
+      // Las solicitudes de eventos cancelados no se muestran.
+      .where('event.cancelledAt IS NULL')
       .orderBy('request.createdAt', 'DESC')
       .addOrderBy('history.id', 'ASC');
 
     if (!hasGlobalAccess(user.role)) {
       const areas = this.executorAreas(user);
 
-      query.where(
+      query.andWhere(
         areas.length > 0
           ? '(request.area IN (:...areas) OR request.authorIds LIKE :author)'
           : 'request.authorIds LIKE :author',
@@ -391,7 +457,8 @@ export class DiffusionService {
       relations: { event: true, assets: true, history: true },
     });
 
-    if (!request) {
+    // Un evento cancelado oculta sus solicitudes y no admite cambios en ellas.
+    if (!request || isCancelled(request.event)) {
       this.fail('NOT_FOUND', `No se encontró la solicitud con ID "${id}"`);
     }
 

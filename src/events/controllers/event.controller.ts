@@ -19,6 +19,7 @@ import {
 
 import { Event } from '../entities/event.entity';
 import {
+  CancelEventDto,
   CreateEventDto,
   ReturnEventDto,
   UpdateEventDto,
@@ -154,6 +155,53 @@ export class EventController {
     @CurrentUser() user: AuthUser,
   ): Promise<Event> {
     return this.eventService.approve(id, user);
+  }
+
+  @RequirePermission(Module.EVENTOS, Action.EDITAR)
+  @Post(':id/cancel')
+  @ApiOperation({
+    summary:
+      'Cancelar el evento (administrador o responsable de Verificación del evento)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Identificador único del evento',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Evento cancelado correctamente',
+    type: Event,
+  })
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() cancelEventDto: CancelEventDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<Event> {
+    return this.eventService.cancel(id, cancelEventDto, user);
+  }
+
+  @RequirePermission(Module.EVENTOS, Action.EDITAR)
+  @Post(':id/reactivate')
+  @ApiOperation({
+    summary:
+      'Reactivar un evento cancelado; sigue en el mismo paso del flujo (administrador o responsable de Verificación)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Identificador único del evento',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Evento reactivado correctamente',
+    type: Event,
+  })
+  async reactivate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<Event> {
+    return this.eventService.reactivate(id, user);
   }
 
   @RequirePermission(Module.EVENTOS, Action.EDITAR)

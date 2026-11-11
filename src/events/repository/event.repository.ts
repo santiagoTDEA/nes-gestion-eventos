@@ -5,7 +5,8 @@ import { In, Repository } from 'typeorm';
 import { Event } from '../entities/event.entity';
 import { EventApproval } from '../entities/event-approval.entity';
 import { EventObservation } from '../entities/event-observation.entity';
-import { WorkflowStatus } from '../constants/approval-flow';
+import { EventRegistration } from '../../registrations/entities/event-registration.entity';
+import { isVerificationRole, WorkflowStatus } from '../constants/approval-flow';
 
 @Injectable()
 export class EventRepository {
@@ -141,6 +142,73 @@ export class EventRepository {
       .getCount();
 
     return count > 0;
+  }
+
+  /**
+   * Ids de los eventos donde el usuario es el responsable del paso de Verificación
+   * (persona vinculada a su usuario en la aprobación con ese rol).
+   */
+  async findVerificationEventIds(
+    userId: string,
+    eventIds?: number[],
+  ): Promise<number[]> {
+    if (eventIds && eventIds.length === 0) return [];
+
+    const query = this.repository.manager
+      .getRepository(EventApproval)
+      .createQueryBuilder('approval')
+      .select('event.id', 'eventId')
+      .addSelect('role.name', 'roleName')
+      .innerJoin('approval.event', 'event')
+      .innerJoin('approval.role', 'role')
+      .innerJoin('approval.person', 'person')
+      .innerJoin('person.user', 'user')
+      .where('user.id = :userId', { userId });
+
+    if (eventIds) {
+      query.andWhere('event.id IN (:...eventIds)', { eventIds });
+    }
+
+    const rows = await query.getRawMany<{
+      eventId: number;
+      roleName: string;
+    }>();
+
+    return [
+      ...new Set(
+        rows
+          .filter((row) => isVerificationRole(row.roleName))
+          .map((row) => Number(row.eventId)),
+      ),
+    ];
+  }
+
+  async setCancellation(
+    id: number,
+    data: Pick<
+      Event,
+      'cancelledAt' | 'cancellationReason' | 'cancelledBy' | 'cancelledByName'
+    >,
+  ): Promise<void> {
+    await this.repository.update(id, data);
+  }
+
+  async clearCancellation(id: number, reactivatedBy: string): Promise<void> {
+    await this.repository.update(id, {
+      cancelledAt: null,
+      cancellationReason: null,
+      cancelledBy: null,
+      cancelledByName: null,
+      reactivatedAt: new Date(),
+      reactivatedBy,
+    });
+  }
+
+  /** Personas inscritas en el evento (para no bajar el cupo por debajo de ellas). */
+  async countRegistrations(eventId: number): Promise<number> {
+    return await this.repository.manager
+      .getRepository(EventRegistration)
+      .count({ where: { event: { id: eventId } } });
   }
 
   async findByName(name: string): Promise<Event | null> {

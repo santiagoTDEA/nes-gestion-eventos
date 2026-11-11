@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import {
   eventEndsAt,
   hasFinished,
+  isCancelled,
   isFullyApproved,
 } from '../../events/constants/approval-flow';
 import { Event } from '../../events/entities/event.entity';
@@ -67,7 +68,12 @@ export class CertificateService {
     );
 
     return events
-      .filter((event) => isFullyApproved(event.approvals) && hasFinished(event))
+      .filter(
+        (event) =>
+          isFullyApproved(event.approvals) &&
+          hasFinished(event) &&
+          !isCancelled(event),
+      )
       .map((event) => this.toEventView(event, countByEvent.get(event.id) ?? 0));
   }
 
@@ -81,7 +87,7 @@ export class CertificateService {
       relations: { approvals: true, faculty: true },
     });
 
-    if (!event || !isFullyApproved(event.approvals)) {
+    if (!event || !isFullyApproved(event.approvals) || isCancelled(event)) {
       throw new NotFoundException(
         'No se encontró el evento o todavía no tiene la aprobación completa.',
       );
