@@ -32,6 +32,7 @@ export function isFirstStep(roleName?: string | null): boolean {
 export enum WorkflowStatus {
   EN_FLUJO = 'en_flujo',
   DEVUELTO = 'devuelto',
+  CANCELADO = 'cancelado',
 }
 
 /** El evento completó la cadena de aprobación (todos los pasos firmados). */

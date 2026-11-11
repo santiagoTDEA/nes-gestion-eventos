@@ -7,7 +7,10 @@ import { User } from '../../auth/entities/auth.entity';
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
 import { hasGlobalAccess } from '../../auth/utils/access-scope.util';
 import { ErrorManager } from '../../utils/error.manager';
-import { normalizeRoleName } from '../../events/constants/approval-flow';
+import {
+  normalizeRoleName,
+  WorkflowStatus,
+} from '../../events/constants/approval-flow';
 import {
   NotificationService,
   NotificationDraft,
@@ -125,6 +128,8 @@ export class DiffusionService {
    */
   async createFromEvent(event: Event, authorIds: string[]): Promise<void> {
     try {
+      if (event.workflowStatus === WorkflowStatus.CANCELADO) return;
+
       const existing = await this.requests.count({
         where: { event: { id: event.id } },
       });
@@ -207,6 +212,10 @@ export class DiffusionService {
         { areas, author: `%${user.userId}%` },
       );
     }
+
+    query.andWhere('event.workflowStatus != :cancelled', {
+      cancelled: WorkflowStatus.CANCELADO,
+    });
 
     return (await query.getMany()).map((request) => this.toView(request, user));
   }
@@ -392,6 +401,10 @@ export class DiffusionService {
     });
 
     if (!request) {
+      this.fail('NOT_FOUND', `No se encontró la solicitud con ID "${id}"`);
+    }
+
+    if (request.event.workflowStatus === WorkflowStatus.CANCELADO) {
       this.fail('NOT_FOUND', `No se encontró la solicitud con ID "${id}"`);
     }
 

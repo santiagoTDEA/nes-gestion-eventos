@@ -222,7 +222,8 @@ export class Event {
   approvals!: EventApproval[];
 
   @ApiProperty({
-    description: 'Estado del evento en el workflow: en_flujo o devuelto',
+    description:
+      'Estado del evento en el workflow: en_flujo, devuelto o cancelado',
     enum: WorkflowStatus,
     example: WorkflowStatus.EN_FLUJO,
   })

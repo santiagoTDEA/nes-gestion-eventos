@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { isFullyApproved } from '../../events/constants/approval-flow';
+import {
+  isFullyApproved,
+  WorkflowStatus,
+} from '../../events/constants/approval-flow';
 import { EventApproval } from '../../events/entities/event-approval.entity';
 import { Event } from '../../events/entities/event.entity';
 import {
@@ -111,7 +114,11 @@ export class RegistrationService {
     );
 
     return events
-      .filter((event) => isFullyApproved(event.approvals))
+      .filter(
+        (event) =>
+          event.workflowStatus !== WorkflowStatus.CANCELADO &&
+          isFullyApproved(event.approvals),
+      )
       .map((event) => this.toEventView(event, countByEvent.get(event.id) ?? 0));
   }
 
@@ -125,7 +132,11 @@ export class RegistrationService {
       relations: { approvals: true, faculty: true },
     });
 
-    if (!event || !isFullyApproved(event.approvals)) {
+    if (
+      !event ||
+      event.workflowStatus === WorkflowStatus.CANCELADO ||
+      !isFullyApproved(event.approvals)
+    ) {
       throw new NotFoundException(
         'No se encontró el evento o todavía no tiene la aprobación completa.',
       );
@@ -341,6 +352,10 @@ export class RegistrationService {
     });
 
     if (!event) {
+      throw new NotFoundException('No se encontró el evento.');
+    }
+
+    if (event.workflowStatus === WorkflowStatus.CANCELADO) {
       throw new NotFoundException('No se encontró el evento.');
     }
 

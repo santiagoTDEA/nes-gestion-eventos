@@ -10,6 +10,7 @@ import {
   eventEndsAt,
   hasFinished,
   isFullyApproved,
+  WorkflowStatus,
 } from '../../events/constants/approval-flow';
 import { Event } from '../../events/entities/event.entity';
 import { EventRegistration } from '../../registrations/entities/event-registration.entity';
@@ -67,7 +68,12 @@ export class CertificateService {
     );
 
     return events
-      .filter((event) => isFullyApproved(event.approvals) && hasFinished(event))
+      .filter(
+        (event) =>
+          event.workflowStatus !== WorkflowStatus.CANCELADO &&
+          isFullyApproved(event.approvals) &&
+          hasFinished(event),
+      )
       .map((event) => this.toEventView(event, countByEvent.get(event.id) ?? 0));
   }
 
@@ -81,7 +87,11 @@ export class CertificateService {
       relations: { approvals: true, faculty: true },
     });
 
-    if (!event || !isFullyApproved(event.approvals)) {
+    if (
+      !event ||
+      event.workflowStatus === WorkflowStatus.CANCELADO ||
+      !isFullyApproved(event.approvals)
+    ) {
       throw new NotFoundException(
         'No se encontró el evento o todavía no tiene la aprobación completa.',
       );

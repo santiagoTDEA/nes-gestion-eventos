@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 
 import { AuthUser } from '../../auth/interfaces/jwt-payload.interface';
-import { ApprovalStatus } from '../../events/constants/approval-flow';
+import {
+  ApprovalStatus,
+  WorkflowStatus,
+} from '../../events/constants/approval-flow';
 import { EventApproval } from '../../events/entities/event-approval.entity';
 import { Event } from '../../events/entities/event.entity';
 import {
@@ -156,8 +159,13 @@ describe('RegistrationService', () => {
       const full = makeEvent(30);
       const half = { ...makeEvent(30, pending), id: 11 };
       const none = { ...makeEvent(30, []), id: 12 };
+      const cancelled = {
+        ...makeEvent(30),
+        id: 13,
+        workflowStatus: WorkflowStatus.CANCELADO,
+      };
 
-      events.find.mockResolvedValue([full, half, none] as never);
+      events.find.mockResolvedValue([full, half, none, cancelled] as never);
       registrations.createQueryBuilder.mockReturnValue({
         innerJoin: () => ({
           select: () => ({
@@ -183,6 +191,17 @@ describe('RegistrationService', () => {
   });
 
   describe('findByEvent', () => {
+    it('does not expose cancelled events or their attendees', async () => {
+      const event = makeEvent(10);
+      event.workflowStatus = WorkflowStatus.CANCELADO;
+      const { service, registrations } = setup(event);
+
+      await expect(service.findByEvent(10)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(registrations.find).not.toHaveBeenCalled();
+    });
+
     it('no muestra asistentes de eventos sin aprobación completa', async () => {
       const { service } = setup(makeEvent(10, pending));
       await expect(service.findByEvent(10)).rejects.toBeInstanceOf(

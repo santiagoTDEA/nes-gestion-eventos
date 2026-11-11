@@ -42,7 +42,11 @@ export class EventService {
   ) {}
 
   async findAll(user: AuthUser): Promise<Event[]> {
-    return this.eventRepository.findAll(getOwnerScope(user));
+    const ownerScope = this.canViewAllEvents(user)
+      ? undefined
+      : getOwnerScope(user);
+
+    return this.eventRepository.findAll(ownerScope);
   }
 
   async findById(idEvent: number, user: AuthUser): Promise<Event> {
@@ -56,7 +60,9 @@ export class EventService {
         });
       }
 
-      const ownerId = getOwnerScope(user);
+      const ownerId = this.canViewAllEvents(user)
+        ? undefined
+        : getOwnerScope(user);
 
       if (
         ownerId &&
@@ -304,6 +310,8 @@ export class EventService {
     event: Event,
     user: AuthUser,
   ): Promise<EventApproval> {
+    this.ensureNotCancelled(event);
+
     if (event.workflowStatus === WorkflowStatus.DEVUELTO) {
       throw new ErrorManager({
         type: 'BAD_REQUEST',
@@ -326,10 +334,12 @@ export class EventService {
       });
     }
 
-    const isResponsible = await this.eventRepository.isApprovalOfUser(
-      current.id,
-      user.userId,
-    );
+    const isVerificationRoleStep =
+      normalizeRoleName(current.role?.name) === 'verificacion' &&
+      normalizeRoleName(user.role?.name) === 'verificacion';
+    const isResponsible =
+      isVerificationRoleStep ||
+      (await this.eventRepository.isApprovalOfUser(current.id, user.userId));
 
     if (!isResponsible) {
       throw new ErrorManager({
@@ -423,6 +433,7 @@ export class EventService {
   async resubmit(idEvent: number, user: AuthUser): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.ensureNotCancelled(event);
 
       if (event.workflowStatus !== WorkflowStatus.DEVUELTO) {
         throw new ErrorManager({
@@ -475,6 +486,7 @@ export class EventService {
   ): Promise<Event> {
     try {
       const event = await this.findById(idEvent, user);
+      this.ensureNotCancelled(event);
       const isApproved = isFullyApproved(event.approvals);
 
       if (isApproved && !this.canEditApprovedEvent(user)) {
@@ -569,6 +581,56 @@ export class EventService {
       hasGlobalAccess(user.role) ||
       normalizeRoleName(user.role?.name) === 'verificacion'
     );
+  }
+
+  private canViewAllEvents(user: AuthUser): boolean {
+    return (
+      hasGlobalAccess(user.role) ||
+      normalizeRoleName(user.role?.name) === 'verificacion'
+    );
+  }
+
+  async cancel(idEvent: number, user: AuthUser): Promise<Event> {
+    try {
+      if (
+        !hasGlobalAccess(user.role) &&
+        normalizeRoleName(user.role?.name) !== 'verificacion'
+      ) {
+        throw new ErrorManager({
+          type: 'FORBIDDEN',
+          message:
+            'Solo los roles de Verificación y administración pueden cancelar eventos',
+        });
+      }
+
+      const event = await this.findById(idEvent, user);
+      this.ensureNotCancelled(event);
+
+      await this.eventRepository.setWorkflowStatus(
+        idEvent,
+        WorkflowStatus.CANCELADO,
+      );
+
+      const cancelled = await this.findById(idEvent, user);
+      await this.notifier.cancelled(cancelled, user.userId);
+
+      return cancelled;
+    } catch (error) {
+      if (error instanceof ErrorManager) {
+        ErrorManager.createAsignatureError(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  private ensureNotCancelled(event: Event): void {
+    if (event.workflowStatus === WorkflowStatus.CANCELADO) {
+      throw new ErrorManager({
+        type: 'BAD_REQUEST',
+        message: 'El evento está cancelado y ya no se puede modificar',
+      });
+    }
   }
 
   async remove(idEvent: number, user: AuthUser): Promise<void> {

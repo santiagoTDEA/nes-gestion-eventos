@@ -161,6 +161,25 @@ export class EventNotifier {
     });
   }
 
+  /** Avisa al autor y a todas las personas asignadas cuando se cancela el evento. */
+  async cancelled(event: Event, actorUserId: string): Promise<void> {
+    await this.safely(async () => {
+      const context = await this.buildContext(event);
+      const participants = [
+        ...context.authorIds,
+        ...context.steps.map((step) => step.userId),
+      ].filter((userId) => userId !== actorUserId);
+      const drafts: NotificationDraft[] = [];
+
+      this.toUsers(drafts, participants, event, {
+        type: NotificationType.CANCELADO,
+        message: `El evento «${event.name}» fue cancelado y ya no continuará en el flujo de gestión.`,
+      });
+
+      await this.notificationService.notify(drafts);
+    });
+  }
+
   /** Usuarios que se consideran autores del evento (creador y persona de Elaboración). */
   async authorIds(event: Event): Promise<string[]> {
     return (await this.buildContext(event)).authorIds;

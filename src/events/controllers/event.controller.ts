@@ -157,6 +157,28 @@ export class EventController {
   }
 
   @RequirePermission(Module.EVENTOS, Action.EDITAR)
+  @Post(':id/cancel')
+  @ApiOperation({
+    summary: 'Cancelar un evento (solo Verificación y administración)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Identificador único del evento',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Evento cancelado correctamente',
+    type: Event,
+  })
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<Event> {
+    return this.eventService.cancel(id, user);
+  }
+
+  @RequirePermission(Module.EVENTOS, Action.EDITAR)
   @Patch(':id')
   @ApiOperation({
     summary: 'Actualizar un evento',
